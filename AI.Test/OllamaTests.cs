@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.AI;
+using Microsoft.Extensions.AI;
 using OllamaSharp;
 using System.Text;
 
@@ -19,7 +19,7 @@ public sealed class OllamaTests
 		];
 
 		var response = new StringBuilder();
-		
+
 		await foreach (ChatResponseUpdate item in chatClient.GetStreamingResponseAsync(chatHistory))
 		{
 			response.Append(item.Text);

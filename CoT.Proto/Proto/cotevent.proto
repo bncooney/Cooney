@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package atakmap.commoncommo.protobuf.v1;
+
+import "detail.proto";
+
+message CotEvent {
+  string type = 1;              // Event type (e.g., "a-f-G-E-V")
+  string access = 2;            // Optional access control
+  string qos = 3;               // Quality of service
+  string opex = 4;              // Operations exercise
+  string uid = 5;               // Unique identifier
+  uint64 sendTime = 6;          // Send time (ms since epoch)
+  uint64 startTime = 7;         // Start time (ms since epoch)
+  uint64 staleTime = 8;         // Stale time (ms since epoch)
+  string how = 9;               // How generated
+  double lat = 10;              // Latitude
+  double lon = 11;              // Longitude
+  double hae = 12;              // Height above ellipsoid (999999 = unknown)
+  double ce = 13;               // Circular error (999999 = unknown)
+  double le = 14;               // Linear error (999999 = unknown)
+  Detail detail = 15;           // Detail container
+  string caveat = 16;           // Optional caveat
+  string releaseableTo = 17;    // Releasability marking
+}

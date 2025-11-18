@@ -1,11 +1,8 @@
-﻿using CommunityToolkit.Diagnostics;
+using CommunityToolkit.Diagnostics;
 using Microsoft.Extensions.AI;
-using System;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json.Nodes;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace AI;
 
@@ -42,7 +39,7 @@ public class ComfyUIApiClient : IImageGenerator
 		_httpClient = new HttpClient { BaseAddress = new Uri(_serverAddress) };
 	}
 
-	public async Task<ImageGenerationResponse> GenerateAsync(ImageGenerationRequest request, ImageGenerationOptions options = null, CancellationToken cancellationToken = default)
+	public async Task<ImageGenerationResponse> GenerateAsync(ImageGenerationRequest request, ImageGenerationOptions? options = null, CancellationToken cancellationToken = default)
 	{
 		int pollingIntervalMs = 3000;
 		int timeoutMs = 120000;
@@ -65,7 +62,7 @@ public class ComfyUIApiClient : IImageGenerator
 		};
 	}
 
-	public object GetService(Type serviceType, object serviceKey = null)
+	public object? GetService(Type serviceType, object? serviceKey = null)
 	{
 		if (serviceType == typeof(IImageGenerator))
 		{
@@ -112,7 +109,7 @@ public class ComfyUIApiClient : IImageGenerator
 		JsonNode finalStatus,
 		CancellationToken cancellationToken)
 	{
-		var outputs = (finalStatus[promptId]?["outputs"]) ?? throw new InvalidOperationException("No outputs found in the workflow result");
+		var outputs = finalStatus[promptId]?["outputs"] ?? throw new InvalidOperationException("No outputs found in the workflow result");
 
 		// Iterate through all output nodes to find the first image
 		foreach (var outputNode in outputs.AsObject())
@@ -127,7 +124,7 @@ public class ComfyUIApiClient : IImageGenerator
 
 				if (!string.IsNullOrEmpty(filename))
 				{
-					return await GetImageAsync(filename, subfolder, type, cancellationToken);
+					return await GetImageAsync(filename!, subfolder, type, cancellationToken);
 				}
 			}
 		}
@@ -145,8 +142,8 @@ public class ComfyUIApiClient : IImageGenerator
 	/// <returns>The prompt ID assigned by the server</returns>
 	private async Task<string> QueuePromptAsync(
 		JsonNode workflow,
-		string clientId = null,
-		string apiKey = null,
+		string? clientId = null,
+		string? apiKey = null,
 		CancellationToken cancellationToken = default)
 	{
 		var payload = new JsonObject
@@ -176,9 +173,9 @@ public class ComfyUIApiClient : IImageGenerator
 		response.EnsureSuccessStatusCode();
 
 		var responseJson = await response.Content.ReadAsStringAsync();
-		var responseObj = JsonNode.Parse(responseJson);
+		var responseObj = JsonNode.Parse(responseJson) ?? throw new InvalidOperationException("Failed to parse response");
 
-		return responseObj?["prompt_id"]?.GetValue<string>()
+		return responseObj["prompt_id"]?.GetValue<string>()
 			?? throw new InvalidOperationException("Failed to get prompt_id from server response");
 	}
 
@@ -194,7 +191,7 @@ public class ComfyUIApiClient : IImageGenerator
 		response.EnsureSuccessStatusCode();
 
 		var content = await response.Content.ReadAsStringAsync();
-		return JsonNode.Parse(content);
+		return JsonNode.Parse(content) ?? throw new InvalidOperationException("Failed to parse history response");
 	}
 
 	/// <summary>
@@ -207,7 +204,7 @@ public class ComfyUIApiClient : IImageGenerator
 	/// <returns>The image data as a byte array</returns>
 	private async Task<byte[]> GetImageAsync(
 		string filename,
-		string subfolder = null,
+		string? subfolder = null,
 		string folderType = "output",
 		CancellationToken cancellationToken = default)
 	{
@@ -224,12 +221,12 @@ public class ComfyUIApiClient : IImageGenerator
 		return await response.Content.ReadAsByteArrayAsync();
 	}
 
-	private static JsonNode BuildFluxWorkflow(ImageGenerationRequest request, ImageGenerationOptions options = null)
+	private static JsonNode BuildFluxWorkflow(ImageGenerationRequest request, ImageGenerationOptions? options = null)
 	{
 		options ??= DefaultImageGenerationOptions;
 
-		var width = options.ImageSize.Value.Width;
-		var height = options.ImageSize.Value.Height;
+		var width = options.ImageSize!.Value.Width;
+		var height = options.ImageSize!.Value.Height;
 		var checkpointName = !string.IsNullOrEmpty(options.ModelId)
 			? options.ModelId
 			: "flux1-dev-fp8.safetensors";
@@ -346,6 +343,6 @@ public class ComfyUIApiClient : IImageGenerator
 				}
 			}
 		}
-		""");
+		""") ?? throw new InvalidOperationException("Failed to parse workflow JSON");
 	}
 }
