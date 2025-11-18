@@ -98,7 +98,7 @@ public class TakTcpStreamClient : IDisposable
 
 			if (completedTask == timeoutTask)
 			{
-				_tcpClient.Close();
+				_tcpClient?.Close();
 				throw new TimeoutException($"Connection to {_config.Host}:{_config.Port} timed out");
 			}
 
@@ -121,7 +121,7 @@ public class TakTcpStreamClient : IDisposable
 			OnError(ex);
 
 			// Start auto-reconnect
-			if (!_isDisposed)
+			if (!_isDisposed && !cancellationToken.IsCancellationRequested)
 			{
 				_reconnectTask = Task.Run(() => ReconnectLoopAsync(cancellationToken));
 			}
@@ -135,6 +135,9 @@ public class TakTcpStreamClient : IDisposable
 	/// </summary>
 	public async Task DisconnectAsync()
 	{
+		// Close the stream first to unblock any pending reads
+		_stream?.Close();
+		
 		if (_cancellationTokenSource != null)
 		{
 			_cancellationTokenSource.Cancel();
@@ -142,7 +145,17 @@ public class TakTcpStreamClient : IDisposable
 			try
 			{
 				if (_receiveTask != null)
-					await _receiveTask;
+				{
+					// Wait for the receive task with a timeout to prevent hanging
+					var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5));
+					var completedTask = await Task.WhenAny(_receiveTask, timeoutTask);
+					
+					if (completedTask == timeoutTask)
+					{
+						// Receive task didn't complete in time, but we'll continue cleanup
+						OnError(new TimeoutException("Receive task did not complete during disconnect"));
+					}
+				}
 			}
 			catch (OperationCanceledException)
 			{
@@ -150,7 +163,6 @@ public class TakTcpStreamClient : IDisposable
 			}
 		}
 
-		_stream?.Close();
 		_stream?.Dispose();
 		_stream = null;
 
@@ -209,7 +221,7 @@ public class TakTcpStreamClient : IDisposable
 				if (!_isDisposed)
 				{
 					ConnectionState = ConnectionState.Reconnecting;
-					_reconnectTask = Task.Run(() => ReconnectLoopAsync(cancellationToken));
+					_reconnectTask = Task.Run(() => ReconnectLoopAsync(CancellationToken.None));
 				}
 				break;
 			}
@@ -219,7 +231,7 @@ public class TakTcpStreamClient : IDisposable
 				if (!_isDisposed)
 				{
 					ConnectionState = ConnectionState.Reconnecting;
-					_reconnectTask = Task.Run(() => ReconnectLoopAsync(cancellationToken));
+					_reconnectTask = Task.Run(() => ReconnectLoopAsync(CancellationToken.None));
 				}
 				break;
 			}
@@ -250,7 +262,7 @@ public class TakTcpStreamClient : IDisposable
 				await Task.Delay(_config.ReconnectInterval, cancellationToken);
 
 				// Attempt to reconnect
-				await ConnectAsync(cancellationToken);
+				await ConnectAsync(CancellationToken.None);
 
 				// If successful, exit reconnect loop
 				break;
@@ -304,10 +316,7 @@ public class TakTcpStreamClient : IDisposable
 	/// </summary>
 	public async Task SendMessageAsync(TakMessage message, CancellationToken cancellationToken = default)
 	{
-		Guard.IsNotNull(_stream);
-		Guard.IsNotNull(_tcpClient);
-
-		if (!_tcpClient.Connected)
+		if (_stream == null || _tcpClient == null || !_tcpClient.Connected)
 			throw new InvalidOperationException("Not connected to server");
 
 		try
@@ -327,6 +336,28 @@ public class TakTcpStreamClient : IDisposable
 			await _stream.WriteAsync(headerBytes, 0, headerBytes.Length, cancellationToken);
 			await _stream.WriteAsync(payload, 0, payload.Length, cancellationToken);
 			await _stream.FlushAsync(cancellationToken);
+		}
+		catch (IOException ex)
+		{
+			// Connection error during send - trigger reconnection
+			OnError(ex);
+			if (!_isDisposed)
+			{
+				ConnectionState = ConnectionState.Reconnecting;
+				_reconnectTask = Task.Run(() => ReconnectLoopAsync(CancellationToken.None));
+			}
+			throw;
+		}
+		catch (ObjectDisposedException ex)
+		{
+			// Stream was disposed - likely during disconnect
+			OnError(ex);
+			throw new InvalidOperationException("Connection was closed", ex);
+		}
+		catch (OperationCanceledException)
+		{
+			// Cancellation requested - don't treat as error
+			throw;
 		}
 		catch (Exception ex)
 		{
@@ -394,6 +425,38 @@ public class TakTcpStreamClient : IDisposable
 			return;
 
 		_isDisposed = true;
-		DisconnectAsync().GetAwaiter().GetResult();
+
+		// Cancel all operations
+		_cancellationTokenSource?.Cancel();
+
+		// Synchronously close and dispose resources
+		try
+		{
+			_stream?.Close();
+		}
+		catch
+		{
+			// Suppress exceptions during disposal
+		}
+
+		_stream?.Dispose();
+		_stream = null;
+
+		try
+		{
+			_tcpClient?.Close();
+		}
+		catch
+		{
+			// Suppress exceptions during disposal
+		}
+
+		_tcpClient?.Dispose();
+		_tcpClient = null;
+
+		_cancellationTokenSource?.Dispose();
+		_cancellationTokenSource = null;
+
+		ConnectionState = ConnectionState.Disconnected;
 	}
 }

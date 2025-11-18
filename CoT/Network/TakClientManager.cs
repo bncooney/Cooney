@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Atakmap.Commoncommo.Protobuf.V1;
 using CoT.Configuration;
 
@@ -304,7 +305,48 @@ public class TakClientManager : IDisposable
 
 		_isDisposed = true;
 
-		StopAllClientsAsync().GetAwaiter().GetResult();
+		// Synchronously dispose all clients without blocking on async operations
+		// The individual client Dispose methods will handle cleanup
+		foreach (var client in _udpClients.Values)
+		{
+			try
+			{
+				client.Dispose();
+			}
+			catch
+			{
+				// Suppress exceptions during disposal
+			}
+		}
+
+		foreach (var client in _tcpClients.Values)
+		{
+			try
+			{
+				client.Dispose();
+			}
+			catch
+			{
+				// Suppress exceptions during disposal
+			}
+		}
+
+		_udpClients.Clear();
+		_tcpClients.Clear();
+	}
+
+	/// <summary>
+	/// Asynchronously disposes all clients and releases resources.
+	/// Use this method when you can properly await the cleanup.
+	/// </summary>
+	public async Task DisposeAsync()
+	{
+		if (_isDisposed)
+			return;
+
+		_isDisposed = true;
+
+		await StopAllClientsAsync().ConfigureAwait(false);
 
 		foreach (var client in _udpClients.Values)
 		{

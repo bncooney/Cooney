@@ -94,7 +94,9 @@ public class SimulatedTakServer : IDisposable
 		{
 			try
 			{
-				var header = TakProtocolHeader.ParseFromStream(stream);
+				// Use Task.Run to offload the synchronous ParseFromStream to a background thread
+				var header = await Task.Run(() => TakProtocolHeader.ParseFromStream(stream), cancellationToken);
+				
 				var payload = new byte[header.PayloadLength];
 				int totalRead = 0;
 
@@ -102,16 +104,29 @@ public class SimulatedTakServer : IDisposable
 				{
 					int bytesRead = await stream.ReadAsync(payload.AsMemory(totalRead, header.PayloadLength - totalRead), cancellationToken);
 					if (bytesRead == 0)
-						break;
+						throw new EndOfStreamException("Connection closed while reading payload");
 					totalRead += bytesRead;
 				}
 
 				var message = _parser.ParseProtobuf(payload);
-				ReceivedMessages.Add(message);
+				lock (ReceivedMessages)
+				{
+					ReceivedMessages.Add(message);
+				}
 				MessageReceived?.Invoke(this, message);
 			}
-			catch
+			catch (OperationCanceledException)
 			{
+				break;
+			}
+			catch (EndOfStreamException)
+			{
+				// Client disconnected
+				break;
+			}
+			catch (Exception)
+			{
+				// Other errors - continue or break depending on severity
 				break;
 			}
 		}

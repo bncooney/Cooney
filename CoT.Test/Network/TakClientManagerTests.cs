@@ -79,7 +79,7 @@ public class TakClientManagerTests
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task StartUdpClientAsync_ValidClient_StartsSuccessfully()
 	{
 		// Arrange
@@ -87,7 +87,7 @@ public class TakClientManagerTests
 		_manager.AddUdpClient("udp-1", config);
 
 		// Act
-		await _manager.StartUdpClientAsync("udp-1");
+		await _manager.StartUdpClientAsync("udp-1", TestContext.CancellationToken);
 
 		// Assert
 		var client = _manager.GetUdpClient("udp-1");
@@ -95,7 +95,7 @@ public class TakClientManagerTests
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ConnectTcpClientAsync_ValidClient_ConnectsSuccessfully()
 	{
 		// Arrange
@@ -108,7 +108,7 @@ public class TakClientManagerTests
 		_manager.AddTcpClient("tcp-1", config);
 
 		// Act
-		await _manager.ConnectTcpClientAsync("tcp-1");
+		await _manager.ConnectTcpClientAsync("tcp-1", TestContext.CancellationToken);
 
 		// Assert
 		var client = _manager.GetTcpClient("tcp-1");
@@ -116,7 +116,7 @@ public class TakClientManagerTests
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task CotEventReceived_FromUdpClient_RaisesManagerEvent()
 	{
 		// Arrange
@@ -132,14 +132,14 @@ public class TakClientManagerTests
 			eventReceived.Set();
 		};
 
-		await _manager.StartUdpClientAsync("udp-1");
+		await _manager.StartUdpClientAsync("udp-1", TestContext.CancellationToken);
 
 		// Act
 		var testEvent = TestDataFactory.CreateTestCotEvent(uid: "MGR-UDP-001");
 		await _multicastSender.SendCotEventAsync(testEvent, useProtobuf: true);
 
 		// Assert
-		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5)), "Event not received");
+		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Event not received");
 		Assert.IsNotNull(receivedArgs);
 		Assert.AreEqual("udp-1", receivedArgs.ClientId);
 		Assert.AreEqual(TakProtocol.UDP_Mesh, receivedArgs.Protocol);
@@ -147,7 +147,7 @@ public class TakClientManagerTests
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task CotEventReceived_FromTcpClient_RaisesManagerEvent()
 	{
 		// Arrange
@@ -168,7 +168,7 @@ public class TakClientManagerTests
 			eventReceived.Set();
 		};
 
-		await _manager.ConnectTcpClientAsync("tcp-1");
+		await _manager.ConnectTcpClientAsync("tcp-1", TestContext.CancellationToken);
 
 		// Act
 		var testMessage = TestDataFactory.CreateTestTakMessage(
@@ -176,7 +176,7 @@ public class TakClientManagerTests
 		await _server.SendMessageAsync(testMessage);
 
 		// Assert
-		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5)), "Event not received");
+		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Event not received");
 		Assert.IsNotNull(receivedArgs);
 		Assert.AreEqual("tcp-1", receivedArgs.ClientId);
 		Assert.AreEqual(TakProtocol.TCP_Stream, receivedArgs.Protocol);
@@ -184,7 +184,7 @@ public class TakClientManagerTests
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task SendCotEventAsync_ValidClient_ServerReceives()
 	{
 		// Arrange
@@ -195,7 +195,14 @@ public class TakClientManagerTests
 			Protocol = TakProtocol.TCP_Stream
 		};
 		_manager.AddTcpClient("tcp-1", config);
-		await _manager.ConnectTcpClientAsync("tcp-1");
+		
+		Exception? clientError = null;
+		_manager.ErrorOccurred += (sender, args) =>
+		{
+			clientError = args.Exception;
+		};
+		
+		await _manager.ConnectTcpClientAsync("tcp-1", TestContext.CancellationToken);
 
 		TakMessage? receivedMessage = null;
 		var messageReceived = new ManualResetEventSlim(false);
@@ -206,18 +213,26 @@ public class TakClientManagerTests
 			messageReceived.Set();
 		};
 
+		// Give the server's receive loop time to start
+		await Task.Delay(100, TestContext.CancellationToken);
+
 		// Act
 		var testEvent = TestDataFactory.CreateTestCotEvent(uid: "SEND-TEST-001");
-		await _manager.SendCotEventAsync("tcp-1", testEvent);
+		await _manager.SendCotEventAsync("tcp-1", testEvent, TestContext.CancellationToken);
 
 		// Assert
-		Assert.IsTrue(messageReceived.Wait(TimeSpan.FromSeconds(5)), "Server did not receive message");
+		if (clientError != null)
+		{
+			Assert.Fail($"Client error occurred: {clientError.Message}\n{clientError.StackTrace}");
+		}
+		
+		Assert.IsTrue(messageReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Server did not receive message");
 		Assert.IsNotNull(receivedMessage);
 		Assert.AreEqual("SEND-TEST-001", receivedMessage.CotEvent.Uid);
 	}
 
 	[TestMethod]
-	[Timeout(15000)]
+	[Timeout(15000, CooperativeCancellation = true)]
 	public async Task StartAllUdpClientsAsync_MultipleClients_AllStart()
 	{
 		// Arrange
@@ -226,7 +241,7 @@ public class TakClientManagerTests
 		_manager.AddUdpClient("udp-3", new TakClientConfig());
 
 		// Act
-		await _manager.StartAllUdpClientsAsync();
+		await _manager.StartAllUdpClientsAsync(TestContext.CancellationToken);
 
 		// Assert
 		Assert.AreEqual(ConnectionState.Connected, _manager.GetUdpClient("udp-1")!.ConnectionState);
@@ -235,7 +250,7 @@ public class TakClientManagerTests
 	}
 
 	[TestMethod]
-	[Timeout(15000)]
+	[Timeout(15000, CooperativeCancellation = true)]
 	public async Task ConnectAllTcpClientsAsync_MultipleClients_AllConnect()
 	{
 		// Arrange
@@ -251,7 +266,7 @@ public class TakClientManagerTests
 			_manager.AddTcpClient("tcp-3", new TakClientConfig { Host = "127.0.0.1", Port = server3.Port });
 
 			// Act
-			await _manager.ConnectAllTcpClientsAsync();
+			await _manager.ConnectAllTcpClientsAsync(TestContext.CancellationToken);
 
 			// Assert
 			Assert.AreEqual(ConnectionState.Connected, _manager.GetTcpClient("tcp-1")!.ConnectionState);
@@ -268,15 +283,15 @@ public class TakClientManagerTests
 	}
 
 	[TestMethod]
-	[Timeout(15000)]
+	[Timeout(15000, CooperativeCancellation = true)]
 	public async Task StopAllClientsAsync_AllClients_AllStop()
 	{
 		// Arrange
 		_manager.AddUdpClient("udp-1", new TakClientConfig());
 		_manager.AddTcpClient("tcp-1", new TakClientConfig { Host = "127.0.0.1", Port = _server.Port });
 
-		await _manager.StartUdpClientAsync("udp-1");
-		await _manager.ConnectTcpClientAsync("tcp-1");
+		await _manager.StartUdpClientAsync("udp-1", TestContext.CancellationToken);
+		await _manager.ConnectTcpClientAsync("tcp-1", TestContext.CancellationToken);
 
 		// Act
 		await _manager.StopAllClientsAsync();
@@ -287,12 +302,12 @@ public class TakClientManagerTests
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task RemoveUdpClientAsync_ExistingClient_RemovesSuccessfully()
 	{
 		// Arrange
 		_manager.AddUdpClient("udp-1", new TakClientConfig());
-		await _manager.StartUdpClientAsync("udp-1");
+		await _manager.StartUdpClientAsync("udp-1", TestContext.CancellationToken);
 
 		// Act
 		await _manager.RemoveUdpClientAsync("udp-1");
@@ -303,13 +318,13 @@ public class TakClientManagerTests
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task RemoveTcpClientAsync_ExistingClient_RemovesSuccessfully()
 	{
 		// Arrange
 		var config = new TakClientConfig { Host = "127.0.0.1", Port = _server.Port };
 		_manager.AddTcpClient("tcp-1", config);
-		await _manager.ConnectTcpClientAsync("tcp-1");
+		await _manager.ConnectTcpClientAsync("tcp-1", TestContext.CancellationToken);
 
 		// Act
 		await _manager.RemoveTcpClientAsync("tcp-1");
@@ -330,9 +345,9 @@ public class TakClientManagerTests
 		var ids = _manager.GetUdpClientIds().ToList();
 
 		// Assert
-		Assert.AreEqual(2, ids.Count);
-		Assert.IsTrue(ids.Contains("udp-1"));
-		Assert.IsTrue(ids.Contains("udp-2"));
+		Assert.HasCount(2, ids);
+		Assert.Contains("udp-1", ids);
+		Assert.Contains("udp-2", ids);
 	}
 
 	[TestMethod]
@@ -346,13 +361,13 @@ public class TakClientManagerTests
 		var ids = _manager.GetTcpClientIds().ToList();
 
 		// Assert
-		Assert.AreEqual(2, ids.Count);
-		Assert.IsTrue(ids.Contains("tcp-1"));
-		Assert.IsTrue(ids.Contains("tcp-2"));
+		Assert.HasCount(2, ids);
+		Assert.Contains("tcp-1", ids);
+		Assert.Contains("tcp-2", ids);
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ConnectionStateChanged_MultipleClients_IdentifiesSource()
 	{
 		// Arrange
@@ -377,17 +392,17 @@ public class TakClientManagerTests
 		};
 
 		// Act
-		await _manager.StartUdpClientAsync("udp-1");
-		await _manager.ConnectTcpClientAsync("tcp-1");
+		await _manager.StartUdpClientAsync("udp-1", TestContext.CancellationToken);
+		await _manager.ConnectTcpClientAsync("tcp-1", TestContext.CancellationToken);
 
 		// Assert
-		Assert.IsTrue(stateChanged.Wait(TimeSpan.FromSeconds(5)), "Did not receive all expected state changes");
+		Assert.IsTrue(stateChanged.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Did not receive all expected state changes");
 		Assert.IsTrue(stateChanges.Any(sc => sc.ClientId == "udp-1" && sc.State == ConnectionState.Connected));
 		Assert.IsTrue(stateChanges.Any(sc => sc.ClientId == "tcp-1" && sc.State == ConnectionState.Connected));
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ErrorOccurred_FromClient_RaisesManagerEvent()
 	{
 		// Arrange
@@ -412,7 +427,7 @@ public class TakClientManagerTests
 		// Act
 		try
 		{
-			await _manager.ConnectTcpClientAsync("tcp-error");
+			await _manager.ConnectTcpClientAsync("tcp-error", TestContext.CancellationToken);
 		}
 		catch
 		{
@@ -420,8 +435,10 @@ public class TakClientManagerTests
 		}
 
 		// Assert
-		Assert.IsTrue(errorReceived.Wait(TimeSpan.FromSeconds(5)), "Error event not raised");
+		Assert.IsTrue(errorReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Error event not raised");
 		Assert.IsNotNull(errorArgs);
 		Assert.AreEqual("tcp-error", errorArgs.ClientId);
 	}
+
+	public TestContext TestContext { get; set; }
 }

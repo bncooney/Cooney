@@ -1,7 +1,7 @@
 using Microsoft.Extensions.AI;
 using System.Reflection;
 
-namespace AI.Test;
+namespace AI.Test.Integration;
 
 [TestClass]
 public sealed class ComfyUITests
@@ -9,7 +9,7 @@ public sealed class ComfyUITests
 	public TestContext? TestContext { get; set; }
 
 	[TestMethod]
-	public async Task TestMethod1()
+	public async Task ImageGenerationTest()
 	{
 		IImageGenerator client = new ComfyUIApiClient("http://127.0.0.1:8188");
 

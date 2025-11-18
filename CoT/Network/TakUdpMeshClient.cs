@@ -277,6 +277,25 @@ public class TakUdpMeshClient : IDisposable
 	/// </summary>
 	public void Dispose()
 	{
-		StopAsync().GetAwaiter().GetResult();
+		// Cancel the operation
+		_cancellationTokenSource?.Cancel();
+
+		// Synchronously close and dispose resources
+		try
+		{
+			_udpClient?.Close();
+		}
+		catch
+		{
+			// Suppress exceptions during disposal
+		}
+
+		_udpClient?.Dispose();
+		_udpClient = null;
+
+		_cancellationTokenSource?.Dispose();
+		_cancellationTokenSource = null;
+
+		ConnectionState = ConnectionState.Disconnected;
 	}
 }

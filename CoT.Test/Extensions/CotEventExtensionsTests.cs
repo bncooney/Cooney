@@ -267,10 +267,10 @@ public class CotEventExtensionsTests
 		var summary = cotEvent.ToSummaryString();
 
 		// Assert
-		Assert.IsTrue(summary.Contains("ABC-123"));
-		Assert.IsTrue(summary.Contains("Bravo-1"));
-		Assert.IsTrue(summary.Contains("37.7749"));
-		Assert.IsTrue(summary.Contains("Stale:"));
+		Assert.Contains("ABC-123", summary);
+		Assert.Contains("Bravo-1", summary);
+		Assert.Contains("37.7749", summary);
+		Assert.Contains("Stale:", summary);
 	}
 
 	[TestMethod]

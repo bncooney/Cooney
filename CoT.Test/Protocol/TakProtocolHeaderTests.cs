@@ -86,7 +86,7 @@ public class TakProtocolHeaderTests
 		var bytes = header.ToBytes();
 
 		// Assert
-		Assert.AreEqual(3, bytes.Length);
+		Assert.HasCount(3, bytes);
 		Assert.AreEqual(0xBF, bytes[0]);
 		Assert.AreEqual(0x01, bytes[1]);
 		Assert.AreEqual(0xBF, bytes[2]);
@@ -107,7 +107,7 @@ public class TakProtocolHeaderTests
 		var bytes = header.ToBytes();
 
 		// Assert
-		Assert.AreEqual(2, bytes.Length);
+		Assert.HasCount(2, bytes);
 		Assert.AreEqual(0xBF, bytes[0]);
 		Assert.AreEqual(0x7F, bytes[1]); // Varint for 127
 	}
@@ -127,7 +127,7 @@ public class TakProtocolHeaderTests
 		var bytes = header.ToBytes();
 
 		// Assert
-		Assert.AreEqual(3, bytes.Length);
+		Assert.HasCount(3, bytes);
 		Assert.AreEqual(0xBF, bytes[0]);
 		Assert.AreEqual(0xAC, bytes[1]); // First byte of varint for 300
 		Assert.AreEqual(0x02, bytes[2]); // Second byte of varint for 300

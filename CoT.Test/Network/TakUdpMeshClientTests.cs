@@ -25,7 +25,7 @@ public class TakUdpMeshClientTests
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task StartAsync_ValidConfig_ConnectsSuccessfully()
 	{
 		// Arrange
@@ -38,14 +38,14 @@ public class TakUdpMeshClientTests
 		_client = new TakUdpMeshClient(config);
 
 		// Act
-		await _client.StartAsync();
+		await _client.StartAsync(TestContext.CancellationToken);
 
 		// Assert
 		Assert.AreEqual(ConnectionState.Connected, _client.ConnectionState);
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ReceiveMessage_ProtobufFormat_RaisesEvent()
 	{
 		// Arrange
@@ -61,20 +61,20 @@ public class TakUdpMeshClientTests
 			eventReceived.Set();
 		};
 
-		await _client.StartAsync();
+		await _client.StartAsync(TestContext.CancellationToken);
 
 		// Act
 		var testEvent = TestDataFactory.CreateTestCotEvent(uid: "UDP-TEST-001");
 		await _multicastSender.SendCotEventAsync(testEvent, useProtobuf: true);
 
 		// Assert
-		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5)), "Event not received within timeout");
+		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Event not received within timeout");
 		Assert.IsNotNull(receivedEvent);
 		Assert.AreEqual("UDP-TEST-001", receivedEvent.Uid);
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ReceiveMessage_XmlFormat_RaisesEvent()
 	{
 		// Arrange
@@ -93,20 +93,20 @@ public class TakUdpMeshClientTests
 			eventReceived.Set();
 		};
 
-		await _client.StartAsync();
+		await _client.StartAsync(TestContext.CancellationToken);
 
 		// Act
 		var testEvent = TestDataFactory.CreateTestCotEvent(uid: "XML-TEST-001");
 		await _multicastSender.SendCotEventAsync(testEvent, useProtobuf: false);
 
 		// Assert
-		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5)), "Event not received within timeout");
+		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Event not received within timeout");
 		Assert.IsNotNull(receivedEvent);
 		Assert.AreEqual("XML-TEST-001", receivedEvent.Uid);
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ReceiveMessage_StaleMessageWithFilter_NotRaised()
 	{
 		// Arrange
@@ -119,18 +119,18 @@ public class TakUdpMeshClientTests
 		var eventReceived = new ManualResetEventSlim(false);
 		_client.CotEventReceived += (sender, cotEvent) => eventReceived.Set();
 
-		await _client.StartAsync();
+		await _client.StartAsync(TestContext.CancellationToken);
 
 		// Act
 		var staleEvent = TestDataFactory.CreateStaleCotEvent();
 		await _multicastSender.SendCotEventAsync(staleEvent, useProtobuf: true);
 
 		// Assert
-		Assert.IsFalse(eventReceived.Wait(TimeSpan.FromSeconds(2)), "Stale event should not be received");
+		Assert.IsFalse(eventReceived.Wait(TimeSpan.FromSeconds(2), TestContext.CancellationToken), "Stale event should not be received");
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ReceiveMessage_StaleMessageWithoutFilter_Raised()
 	{
 		// Arrange
@@ -149,19 +149,19 @@ public class TakUdpMeshClientTests
 			eventReceived.Set();
 		};
 
-		await _client.StartAsync();
+		await _client.StartAsync(TestContext.CancellationToken);
 
 		// Act
 		var staleEvent = TestDataFactory.CreateStaleCotEvent();
 		await _multicastSender.SendCotEventAsync(staleEvent, useProtobuf: true);
 
 		// Assert
-		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5)), "Event should be received even if stale");
+		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Event should be received even if stale");
 		Assert.IsNotNull(receivedEvent);
 	}
 
 	[TestMethod]
-	[Timeout(15000)]
+	[Timeout(15000, CooperativeCancellation = true)]
 	public async Task ReceiveMultipleMessages_AllReceived()
 	{
 		// Arrange
@@ -180,26 +180,26 @@ public class TakUdpMeshClientTests
 			countdown.Signal();
 		};
 
-		await _client.StartAsync();
+		await _client.StartAsync(TestContext.CancellationToken);
 
 		// Act
 		for (int i = 0; i < 3; i++)
 		{
 			var testEvent = TestDataFactory.CreateTestCotEvent(uid: $"MULTI-{i}");
 			await _multicastSender.SendCotEventAsync(testEvent, useProtobuf: true);
-			await Task.Delay(100); // Small delay between sends
+			await Task.Delay(100, TestContext.CancellationToken); // Small delay between sends
 		}
 
 		// Assert
-		Assert.IsTrue(countdown.Wait(TimeSpan.FromSeconds(10)), "Not all events received");
-		Assert.AreEqual(3, receivedEvents.Count);
+		Assert.IsTrue(countdown.Wait(TimeSpan.FromSeconds(10), TestContext.CancellationToken), "Not all events received");
+		Assert.HasCount(3, receivedEvents);
 		Assert.IsTrue(receivedEvents.Any(e => e.Uid == "MULTI-0"));
 		Assert.IsTrue(receivedEvents.Any(e => e.Uid == "MULTI-1"));
 		Assert.IsTrue(receivedEvents.Any(e => e.Uid == "MULTI-2"));
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ConnectionStateChanged_EventRaised()
 	{
 		// Arrange
@@ -221,24 +221,24 @@ public class TakUdpMeshClientTests
 		};
 
 		// Act
-		await _client.StartAsync();
+		await _client.StartAsync(TestContext.CancellationToken);
 		await _client.StopAsync();
 
 		// Assert
-		Assert.IsTrue(stateChanged.Wait(TimeSpan.FromSeconds(5)), "Did not receive all expected state changes");
-		Assert.IsTrue(states.Contains(ConnectionState.Connecting));
-		Assert.IsTrue(states.Contains(ConnectionState.Connected));
-		Assert.IsTrue(states.Contains(ConnectionState.Disconnected));
+		Assert.IsTrue(stateChanged.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Did not receive all expected state changes");
+		Assert.Contains(ConnectionState.Connecting, states);
+		Assert.Contains(ConnectionState.Connected, states);
+		Assert.Contains(ConnectionState.Disconnected, states);
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task StopAsync_WhileRunning_StopsSuccessfully()
 	{
 		// Arrange
 		var config = new TakClientConfig();
 		_client = new TakUdpMeshClient(config);
-		await _client.StartAsync();
+		await _client.StartAsync(TestContext.CancellationToken);
 
 		// Act
 		await _client.StopAsync();
@@ -248,20 +248,20 @@ public class TakUdpMeshClientTests
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task StartAsync_AlreadyRunning_ThrowsException()
 	{
 		// Arrange
 		var config = new TakClientConfig();
 		_client = new TakUdpMeshClient(config);
-		await _client.StartAsync();
+		await _client.StartAsync(TestContext.CancellationToken);
 
 		// Act & Assert
-		var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () => await _client.StartAsync());
+		var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () => await _client.StartAsync(TestContext.CancellationToken));
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ErrorOccurred_InvalidMessage_RaisesEvent()
 	{
 		// Arrange
@@ -277,15 +277,17 @@ public class TakUdpMeshClientTests
 			errorReceived.Set();
 		};
 
-		await _client.StartAsync();
+		await _client.StartAsync(TestContext.CancellationToken);
 
 		// Act - Send invalid packet (too small)
 		var sender = new SimulatedUdpMulticast();
 		var udpClient = new System.Net.Sockets.UdpClient();
-		await udpClient.SendAsync(new byte[] { 0x01, 0x02 }, new System.Net.IPEndPoint(System.Net.IPAddress.Parse("239.2.3.1"), 6969));
+		await udpClient.SendAsync(new byte[] { 0x01, 0x02 }, new System.Net.IPEndPoint(System.Net.IPAddress.Parse("239.2.3.1"), 6969), TestContext.CancellationToken);
 
 		// Assert
-		Assert.IsTrue(errorReceived.Wait(TimeSpan.FromSeconds(5)), "Error event not raised");
+		Assert.IsTrue(errorReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Error event not raised");
 		Assert.IsNotNull(receivedException);
 	}
+
+	public TestContext TestContext { get; set; }
 }

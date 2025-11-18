@@ -2,7 +2,7 @@ using Microsoft.Extensions.AI;
 using OllamaSharp;
 using System.Text;
 
-namespace AI.Test;
+namespace AI.Test.Integration;
 
 [TestClass]
 public sealed class OllamaTests
@@ -10,7 +10,7 @@ public sealed class OllamaTests
 	public TestContext? TestContext { get; set; }
 
 	[TestMethod]
-	public async Task TestMethod1()
+	public async Task ResponseGenerationTest()
 	{
 		IChatClient chatClient = new OllamaApiClient(new Uri("http://192.168.1.41:11434/"), "gpt-oss:20b");
 		List<ChatMessage> chatHistory =

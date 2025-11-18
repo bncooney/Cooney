@@ -62,7 +62,7 @@ public class TakMessageParserTests
 
 		// Assert
 		Assert.IsNotNull(bytes);
-		Assert.IsTrue(bytes.Length > 0);
+		Assert.IsNotEmpty(bytes);
 	}
 
 	[TestMethod]
@@ -76,12 +76,12 @@ public class TakMessageParserTests
 		var xmlString = System.Text.Encoding.UTF8.GetString(xmlBytes);
 
 		// Assert
-		Assert.IsTrue(xmlString.Contains("<event"));
-		Assert.IsTrue(xmlString.Contains($"uid=\"{cotEvent.Uid}\""));
-		Assert.IsTrue(xmlString.Contains($"type=\"{cotEvent.Type}\""));
-		Assert.IsTrue(xmlString.Contains("<point"));
-		Assert.IsTrue(xmlString.Contains($"lat=\"{cotEvent.Lat}\""));
-		Assert.IsTrue(xmlString.Contains($"lon=\"{cotEvent.Lon}\""));
+		Assert.Contains("<event", xmlString);
+		Assert.Contains($"uid=\"{cotEvent.Uid}\"", xmlString);
+		Assert.Contains($"type=\"{cotEvent.Type}\"", xmlString);
+		Assert.Contains("<point", xmlString);
+		Assert.Contains($"lat=\"{cotEvent.Lat}\"", xmlString);
+		Assert.Contains($"lon=\"{cotEvent.Lon}\"", xmlString);
 	}
 
 	[TestMethod]

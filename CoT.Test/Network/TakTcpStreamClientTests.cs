@@ -28,7 +28,7 @@ public class TakTcpStreamClientTests
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ConnectAsync_ValidServer_ConnectsSuccessfully()
 	{
 		// Arrange
@@ -41,14 +41,14 @@ public class TakTcpStreamClientTests
 		_client = new TakTcpStreamClient(config);
 
 		// Act
-		await _client.ConnectAsync();
+		await _client.ConnectAsync(TestContext.CancellationToken);
 
 		// Assert
 		Assert.AreEqual(ConnectionState.Connected, _client.ConnectionState);
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task SendMessageAsync_ValidMessage_ServerReceives()
 	{
 		// Arrange
@@ -59,7 +59,7 @@ public class TakTcpStreamClientTests
 			Protocol = TakProtocol.TCP_Stream
 		};
 		_client = new TakTcpStreamClient(config);
-		await _client.ConnectAsync();
+		await _client.ConnectAsync(TestContext.CancellationToken);
 
 		var messageReceived = new ManualResetEventSlim(false);
 		TakMessage? receivedMessage = null;
@@ -72,16 +72,16 @@ public class TakTcpStreamClientTests
 
 		// Act
 		var testMessage = TestDataFactory.CreateTestTakMessage();
-		await _client.SendMessageAsync(testMessage);
+		await _client.SendMessageAsync(testMessage, TestContext.CancellationToken);
 
 		// Assert
-		Assert.IsTrue(messageReceived.Wait(TimeSpan.FromSeconds(5)), "Server did not receive message");
+		Assert.IsTrue(messageReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Server did not receive message");
 		Assert.IsNotNull(receivedMessage);
 		Assert.AreEqual(testMessage.CotEvent.Uid, receivedMessage.CotEvent.Uid);
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task SendCotEventAsync_ValidEvent_ServerReceives()
 	{
 		// Arrange
@@ -92,7 +92,7 @@ public class TakTcpStreamClientTests
 			Protocol = TakProtocol.TCP_Stream
 		};
 		_client = new TakTcpStreamClient(config);
-		await _client.ConnectAsync();
+		await _client.ConnectAsync(TestContext.CancellationToken);
 
 		var messageReceived = new ManualResetEventSlim(false);
 		TakMessage? receivedMessage = null;
@@ -105,17 +105,17 @@ public class TakTcpStreamClientTests
 
 		// Act
 		var testEvent = TestDataFactory.CreateTestCotEvent(uid: "TCP-TEST-001");
-		await _client.SendCotEventAsync(testEvent);
+		await _client.SendCotEventAsync(testEvent, TestContext.CancellationToken);
 
 		// Assert
-		Assert.IsTrue(messageReceived.Wait(TimeSpan.FromSeconds(5)), "Server did not receive event");
+		Assert.IsTrue(messageReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Server did not receive event");
 		Assert.IsNotNull(receivedMessage);
 		Assert.IsNotNull(receivedMessage.CotEvent);
 		Assert.AreEqual("TCP-TEST-001", receivedMessage.CotEvent.Uid);
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ReceiveMessage_FromServer_RaisesEvent()
 	{
 		// Arrange
@@ -136,7 +136,7 @@ public class TakTcpStreamClientTests
 			eventReceived.Set();
 		};
 
-		await _client.ConnectAsync();
+		await _client.ConnectAsync(TestContext.CancellationToken);
 
 		// Act
 		var testMessage = TestDataFactory.CreateTestTakMessage(
@@ -144,13 +144,13 @@ public class TakTcpStreamClientTests
 		await _server.SendMessageAsync(testMessage);
 
 		// Assert
-		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5)), "Client did not receive event");
+		Assert.IsTrue(eventReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Client did not receive event");
 		Assert.IsNotNull(receivedEvent);
 		Assert.AreEqual("SERVER-SENT-001", receivedEvent.Uid);
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ReceiveMessage_StaleWithFilter_NotRaised()
 	{
 		// Arrange
@@ -166,7 +166,7 @@ public class TakTcpStreamClientTests
 		var eventReceived = new ManualResetEventSlim(false);
 		_client.CotEventReceived += (sender, cotEvent) => eventReceived.Set();
 
-		await _client.ConnectAsync();
+		await _client.ConnectAsync(TestContext.CancellationToken);
 
 		// Act
 		var staleMessage = TestDataFactory.CreateTestTakMessage(
@@ -174,11 +174,11 @@ public class TakTcpStreamClientTests
 		await _server.SendMessageAsync(staleMessage);
 
 		// Assert
-		Assert.IsFalse(eventReceived.Wait(TimeSpan.FromSeconds(2)), "Stale event should not be received");
+		Assert.IsFalse(eventReceived.Wait(TimeSpan.FromSeconds(2), TestContext.CancellationToken), "Stale event should not be received");
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task DisconnectAsync_WhileConnected_DisconnectsSuccessfully()
 	{
 		// Arrange
@@ -189,7 +189,7 @@ public class TakTcpStreamClientTests
 			Protocol = TakProtocol.TCP_Stream
 		};
 		_client = new TakTcpStreamClient(config);
-		await _client.ConnectAsync();
+		await _client.ConnectAsync(TestContext.CancellationToken);
 
 		// Act
 		await _client.DisconnectAsync();
@@ -199,7 +199,7 @@ public class TakTcpStreamClientTests
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ConnectionStateChanged_EventsRaised()
 	{
 		// Arrange
@@ -226,18 +226,18 @@ public class TakTcpStreamClientTests
 		};
 
 		// Act
-		await _client.ConnectAsync();
+		await _client.ConnectAsync(TestContext.CancellationToken);
 		await _client.DisconnectAsync();
 
 		// Assert
-		Assert.IsTrue(stateChanged.Wait(TimeSpan.FromSeconds(5)), "Did not receive all expected state changes");
-		Assert.IsTrue(states.Contains(ConnectionState.Connecting));
-		Assert.IsTrue(states.Contains(ConnectionState.Connected));
-		Assert.IsTrue(states.Contains(ConnectionState.Disconnected));
+		Assert.IsTrue(stateChanged.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Did not receive all expected state changes");
+		Assert.Contains(ConnectionState.Connecting, states);
+		Assert.Contains(ConnectionState.Connected, states);
+		Assert.Contains(ConnectionState.Disconnected, states);
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ConnectAsync_AlreadyConnected_ThrowsException()
 	{
 		// Arrange
@@ -248,14 +248,14 @@ public class TakTcpStreamClientTests
 			Protocol = TakProtocol.TCP_Stream
 		};
 		_client = new TakTcpStreamClient(config);
-		await _client.ConnectAsync();
+		await _client.ConnectAsync(TestContext.CancellationToken);
 
 		// Act & Assert
-		var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () => await _client.ConnectAsync());
+		var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () => await _client.ConnectAsync(TestContext.CancellationToken));
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task ConnectAsync_InvalidServer_RaisesError()
 	{
 		// Arrange
@@ -280,7 +280,7 @@ public class TakTcpStreamClientTests
 		// Act
 		try
 		{
-			await _client.ConnectAsync();
+			await _client.ConnectAsync(TestContext.CancellationToken);
 		}
 		catch
 		{
@@ -288,12 +288,12 @@ public class TakTcpStreamClientTests
 		}
 
 		// Assert - Error event should be raised
-		Assert.IsTrue(errorReceived.Wait(TimeSpan.FromSeconds(5)), "Error event not raised");
+		Assert.IsTrue(errorReceived.Wait(TimeSpan.FromSeconds(5), TestContext.CancellationToken), "Error event not raised");
 		Assert.IsNotNull(receivedException);
 	}
 
 	[TestMethod]
-	[Timeout(15000)]
+	[Timeout(15000, CooperativeCancellation = true)]
 	public async Task SendMultipleMessages_AllReceived()
 	{
 		// Arrange
@@ -304,7 +304,7 @@ public class TakTcpStreamClientTests
 			Protocol = TakProtocol.TCP_Stream
 		};
 		_client = new TakTcpStreamClient(config);
-		await _client.ConnectAsync();
+		await _client.ConnectAsync(TestContext.CancellationToken);
 
 		var countdown = new CountdownEvent(3);
 
@@ -314,16 +314,16 @@ public class TakTcpStreamClientTests
 		for (int i = 0; i < 3; i++)
 		{
 			var testEvent = TestDataFactory.CreateTestCotEvent(uid: $"MULTI-TCP-{i}");
-			await _client.SendCotEventAsync(testEvent);
+			await _client.SendCotEventAsync(testEvent, TestContext.CancellationToken);
 		}
 
 		// Assert
-		Assert.IsTrue(countdown.Wait(TimeSpan.FromSeconds(10)), "Not all messages received by server");
-		Assert.AreEqual(3, _server.ReceivedMessages.Count);
+		Assert.IsTrue(countdown.Wait(TimeSpan.FromSeconds(10), TestContext.CancellationToken), "Not all messages received by server");
+		Assert.HasCount(3, _server.ReceivedMessages);
 	}
 
 	[TestMethod]
-	[Timeout(15000)]
+	[Timeout(15000, CooperativeCancellation = true)]
 	public async Task ReceiveMultipleMessages_AllReceived()
 	{
 		// Arrange
@@ -347,7 +347,7 @@ public class TakTcpStreamClientTests
 			countdown.Signal();
 		};
 
-		await _client.ConnectAsync();
+		await _client.ConnectAsync(TestContext.CancellationToken);
 
 		// Act
 		for (int i = 0; i < 3; i++)
@@ -355,16 +355,16 @@ public class TakTcpStreamClientTests
 			var testMessage = TestDataFactory.CreateTestTakMessage(
 				TestDataFactory.CreateTestCotEvent(uid: $"SERVER-MULTI-{i}"));
 			await _server.SendMessageAsync(testMessage);
-			await Task.Delay(50);
+			await Task.Delay(50, TestContext.CancellationToken);
 		}
 
 		// Assert
-		Assert.IsTrue(countdown.Wait(TimeSpan.FromSeconds(10)), "Not all messages received by client");
-		Assert.AreEqual(3, receivedEvents.Count);
+		Assert.IsTrue(countdown.Wait(TimeSpan.FromSeconds(10), TestContext.CancellationToken), "Not all messages received by client");
+		Assert.HasCount(3, receivedEvents);
 	}
 
 	[TestMethod]
-	[Timeout(10000)]
+	[Timeout(10000, CooperativeCancellation = true)]
 	public async Task SendMessageAsync_NotConnected_ThrowsException()
 	{
 		// Arrange
@@ -378,6 +378,8 @@ public class TakTcpStreamClientTests
 
 		// Act & Assert
 		var testMessage = TestDataFactory.CreateTestTakMessage();
-		var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () => await _client.SendMessageAsync(testMessage));
+		var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () => await _client.SendMessageAsync(testMessage, TestContext.CancellationToken));
 	}
+
+	public TestContext TestContext { get; set; }
 }
