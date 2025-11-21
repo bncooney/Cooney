@@ -1,6 +1,5 @@
 using CommunityToolkit.Diagnostics;
 using Microsoft.Extensions.AI;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json.Nodes;
 
@@ -10,8 +9,8 @@ public class ComfyUIApiClient : IImageGenerator
 {
 	private static readonly Random _random = new();
 
-	private readonly string _serverAddress;
 	private readonly HttpClient _httpClient;
+	private readonly string _serverAddress;
 
 	public static readonly ImageGenerationOptions DefaultImageGenerationOptions = new()
 	{
@@ -192,6 +191,136 @@ public class ComfyUIApiClient : IImageGenerator
 
 		var content = await response.Content.ReadAsStringAsync();
 		return JsonNode.Parse(content) ?? throw new InvalidOperationException("Failed to parse history response");
+	}
+
+	/// <summary>
+	/// Retrieves system statistics from the ComfyUI server.
+	/// </summary>
+	/// <param name="cancellationToken">Cancellation token</param>
+	/// <returns>System stats as a JsonNode if successful, null if the server is not reachable</returns>
+	public async Task<JsonNode?> GetSystemStatsAsync(CancellationToken cancellationToken = default)
+	{
+		try
+		{
+			var response = await _httpClient.GetAsync("/system_stats", cancellationToken);
+
+			if (!response.IsSuccessStatusCode)
+				return null;
+
+			var content = await response.Content.ReadAsStringAsync();
+			return JsonNode.Parse(content);
+		}
+		catch (Exception)
+		{
+			return null;
+		}
+	}
+
+	/// <summary>
+	/// Retrieves the list of available node types from the ComfyUI server.
+	/// </summary>
+	/// <param name="cancellationToken">Cancellation token</param>
+	/// <returns>A list of node type names (e.g., "KSampler", "CheckpointLoaderSimple")</returns>
+	public async Task<List<string>> GetNodeTypesAsync(CancellationToken cancellationToken = default)
+	{
+		var response = await _httpClient.GetAsync("/object_info", cancellationToken);
+		response.EnsureSuccessStatusCode();
+
+		var content = await response.Content.ReadAsStringAsync();
+		var objectInfo = JsonNode.Parse(content)
+			?? throw new InvalidOperationException("Failed to parse object_info response");
+
+		return objectInfo.AsObject().Select(kvp => kvp.Key).ToList();
+	}
+
+	/// <summary>
+	/// Retrieves the list of all available models from the ComfyUI server across all model folders.
+	/// </summary>
+	/// <param name="cancellationToken">Cancellation token</param>
+	/// <returns>A list of all model filenames (e.g., "flux1-dev-fp8.safetensors", "umt5_xxl_fp8_e4m3fn_scaled.safetensors")</returns>
+	public async Task<List<string>> GetModelsAsync(CancellationToken cancellationToken = default)
+	{
+		// Get all model folder names
+		var foldersResponse = await _httpClient.GetAsync("/models", cancellationToken);
+		foldersResponse.EnsureSuccessStatusCode();
+
+		var foldersContent = await foldersResponse.Content.ReadAsStringAsync();
+		var folders = JsonNode.Parse(foldersContent)
+			?? throw new InvalidOperationException("Failed to parse models folder response");
+
+		var folderNames = folders.AsArray()
+			.Select(node => node?.GetValue<string>())
+			.Where(name => !string.IsNullOrEmpty(name))
+			.Where(name => !name!.Equals("custom_nodes", StringComparison.OrdinalIgnoreCase))
+			.ToList();
+
+		// Get models from each folder
+		var allModels = new List<string>();
+
+		foreach (var folder in folderNames)
+		{
+			var modelsResponse = await _httpClient.GetAsync($"/models/{folder}", cancellationToken);
+			modelsResponse.EnsureSuccessStatusCode();
+
+			var modelsContent = await modelsResponse.Content.ReadAsStringAsync();
+			var models = JsonNode.Parse(modelsContent)
+				?? throw new InvalidOperationException($"Failed to parse models response for folder: {folder}");
+
+			var modelNames = models.AsArray()
+				.Select(node => node?.GetValue<string>())
+				.Where(name => !string.IsNullOrEmpty(name))
+				.Select(name => name!);
+
+			allModels.AddRange(modelNames);
+		}
+
+		return allModels;
+	}
+
+	/// <summary>
+	/// Uploads an image to the ComfyUI server.
+	/// </summary>
+	/// <param name="imageData">The image data as a byte array</param>
+	/// <param name="filename">The filename to use for the uploaded image</param>
+	/// <param name="overwrite">Whether to overwrite an existing file with the same name</param>
+	/// <param name="subfolder">Optional subfolder to upload the image to</param>
+	/// <param name="cancellationToken">Cancellation token</param>
+	/// <returns>The uploaded image information including name and subfolder</returns>
+	public async Task<(string name, string subfolder, string type)> UploadImageAsync(
+		byte[] imageData,
+		string filename,
+		bool overwrite = true,
+		string? subfolder = null,
+		CancellationToken cancellationToken = default)
+	{
+		using var content = new MultipartFormDataContent();
+
+		var imageContent = new ByteArrayContent(imageData);
+		imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+		content.Add(imageContent, "image", filename);
+
+		if (overwrite)
+		{
+			content.Add(new StringContent("true"), "overwrite");
+		}
+
+		if (!string.IsNullOrEmpty(subfolder))
+		{
+			content.Add(new StringContent(subfolder), "subfolder");
+		}
+
+		var response = await _httpClient.PostAsync("/upload/image", content, cancellationToken);
+		response.EnsureSuccessStatusCode();
+
+		var responseJson = await response.Content.ReadAsStringAsync();
+		var responseObj = JsonNode.Parse(responseJson) ?? throw new InvalidOperationException("Failed to parse upload response");
+
+		var name = responseObj["name"]?.GetValue<string>()
+			?? throw new InvalidOperationException("Failed to get name from upload response");
+		var uploadedSubfolder = responseObj["subfolder"]?.GetValue<string>() ?? string.Empty;
+		var type = responseObj["type"]?.GetValue<string>() ?? "input";
+
+		return (name, uploadedSubfolder, type);
 	}
 
 	/// <summary>

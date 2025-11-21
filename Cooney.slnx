@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="AI.SourceGenerators/AI.SourceGenerators.csproj" Id="ed8679b7-1575-4631-ae8f-bc82b001ae8f" />
   <Project Path="AI.Test/AI.Test.csproj" />
   <Project Path="AI/AI.csproj" />
 </Solution>
