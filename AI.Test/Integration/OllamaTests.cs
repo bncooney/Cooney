@@ -7,7 +7,7 @@ namespace AI.Test.Integration;
 [TestClass]
 public sealed class OllamaTests
 {
-	public TestContext? TestContext { get; set; }
+	public TestContext TestContext { get; set; }
 
 	[TestMethod]
 	public async Task ResponseGenerationTest()
@@ -20,7 +20,7 @@ public sealed class OllamaTests
 
 		var response = new StringBuilder();
 
-		await foreach (ChatResponseUpdate item in chatClient.GetStreamingResponseAsync(chatHistory))
+		await foreach (ChatResponseUpdate item in chatClient.GetStreamingResponseAsync(chatHistory, cancellationToken: TestContext.CancellationToken))
 		{
 			response.Append(item.Text);
 		}

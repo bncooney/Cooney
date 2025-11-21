@@ -67,7 +67,7 @@ public sealed class WorkflowSourceGenerator : IIncrementalGenerator
 						Path.GetFileName(workflow.FilePath));
 					context.ReportDiagnostic(infoDiagnostic);
 				}
-				catch (Exception ex)
+				catch (Exception)
 				{
 					// If code generation fails, report as error
 					var diagnostic = Diagnostic.Create(

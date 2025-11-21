@@ -38,7 +38,7 @@ internal static class WorkflowCodeGenerator
 		foreach (var parameter in workflow.Parameters)
 		{
 			var propertyName = ToPascalCase(parameter);
-			sb.AppendLine($"\tpublic string {propertyName} {{ get; }}");
+			sb.AppendLine($"\tpublic string {propertyName} {{ get; set; }}");
 			sb.AppendLine();
 		}
 
@@ -92,11 +92,11 @@ internal static class WorkflowCodeGenerator
 	}
 
 	/// <summary>
-	/// Generates the Build method that substitutes parameters into the JSON template.
+	/// Generates the Build method that substitutes parameters into the JSON template and returns a JsonNode.
 	/// </summary>
 	private static void GenerateBuildMethod(StringBuilder sb, IReadOnlyList<string> parameters)
 	{
-		sb.AppendLine("\tpublic string Build()");
+		sb.AppendLine("\tpublic global::System.Text.Json.Nodes.JsonNode Build()");
 		sb.AppendLine("\t{");
 
 		if (parameters.Count > 0)
@@ -109,11 +109,11 @@ internal static class WorkflowCodeGenerator
 				sb.AppendLine($"\t\tjson = json.Replace(\"{{{{{parameter}}}}}\", {propertyName});");
 			}
 
-			sb.AppendLine("\t\treturn json;");
+			sb.AppendLine("\t\treturn global::System.Text.Json.Nodes.JsonNode.Parse(json)!;");
 		}
 		else
 		{
-			sb.AppendLine("\t\treturn TemplateJson;");
+			sb.AppendLine("\t\treturn global::System.Text.Json.Nodes.JsonNode.Parse(TemplateJson)!;");
 		}
 
 		sb.AppendLine("\t}");

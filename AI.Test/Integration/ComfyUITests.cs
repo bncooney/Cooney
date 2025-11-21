@@ -1,3 +1,4 @@
+using AI.Workflows.Generated;
 using Microsoft.Extensions.AI;
 using System.Reflection;
 
@@ -59,6 +60,34 @@ public sealed class ComfyUITests
 
 		string filePath = Path.Combine(tempDirPath, "generated_image.png");
 		await File.WriteAllBytesAsync(filePath, (byte[])image.RawRepresentation, TestContext.CancellationToken);
+
+		TestContext.AddResultFile(filePath);
+	}
+
+	[TestMethod]
+	[Priority(1)]
+	public async Task Text2VideoTest()
+	{
+		var prompt = "White numerals flip over on a blue background.";
+		var options = ComfyUIApiClient.DefaultImageGenerationOptions.Clone();
+		options.AdditionalProperties!["workflow"] = new Text2imageWanWorkflow("Square_512_512x512.png", prompt);
+		options.ImageSize = new(512, 512);
+
+		var video = await _client.GenerateAsync(new ImageGenerationRequest
+		{
+			Prompt = prompt,
+		}, options, cancellationToken: TestContext!.CancellationToken);
+
+		Assert.IsNotNull(video);
+		Assert.IsNotNull(video.RawRepresentation);
+
+		string assemblyName = Assembly.GetExecutingAssembly().GetName().Name!;
+		string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss-fff");
+		string tempDirPath = Path.Combine(Path.GetTempPath(), assemblyName, timestamp);
+		Directory.CreateDirectory(tempDirPath);
+
+		string filePath = Path.Combine(tempDirPath, "generated_image.png");
+		await File.WriteAllBytesAsync(filePath, (byte[])video.RawRepresentation, TestContext.CancellationToken);
 
 		TestContext.AddResultFile(filePath);
 	}

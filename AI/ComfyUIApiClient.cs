@@ -16,6 +16,7 @@ public class ComfyUIApiClient : IImageGenerator
 	{
 		AdditionalProperties = new()
 		{
+			{ "workflow", null },
 			{ "steps", 20 },
 			{ "cfg_scale", 1.0 },
 			{ "guidance_scale", 3.5 },
@@ -41,13 +42,23 @@ public class ComfyUIApiClient : IImageGenerator
 	public async Task<ImageGenerationResponse> GenerateAsync(ImageGenerationRequest request, ImageGenerationOptions? options = null, CancellationToken cancellationToken = default)
 	{
 		int pollingIntervalMs = 3000;
-		int timeoutMs = 120000;
+		int timeoutMs = 240_000;
 
-		// TODO: Workflow creation based on request and options e.g. options.ModelId etc.
-		var workflow = BuildFluxWorkflow(request, options);
+		IWorkflow workflow;
+		if (options != null &&
+			options.AdditionalProperties != null &&
+			options.AdditionalProperties.TryGetValue("workflow", out var workflowObj) &&
+			workflowObj is IWorkflow customWorkflow)
+		{
+			workflow = customWorkflow;
+		}
+		else
+		{
+			workflow = BuildFluxWorkflow(request, options);
+		}
 
 		// Queue the workflow
-		var promptId = await QueuePromptAsync(workflow, cancellationToken: cancellationToken);
+		var promptId = await QueuePromptAsync(workflow.Build(), cancellationToken: cancellationToken);
 
 		// Wait for completion
 		var finalStatus = await WaitForCompletionAsync(promptId, pollingIntervalMs, timeoutMs, cancellationToken);
@@ -230,7 +241,7 @@ public class ComfyUIApiClient : IImageGenerator
 		var objectInfo = JsonNode.Parse(content)
 			?? throw new InvalidOperationException("Failed to parse object_info response");
 
-		return objectInfo.AsObject().Select(kvp => kvp.Key).ToList();
+		return [.. objectInfo.AsObject().Select(kvp => kvp.Key)];
 	}
 
 	/// <summary>
@@ -350,7 +361,7 @@ public class ComfyUIApiClient : IImageGenerator
 		return await response.Content.ReadAsByteArrayAsync();
 	}
 
-	private static JsonNode BuildFluxWorkflow(ImageGenerationRequest request, ImageGenerationOptions? options = null)
+	private static IWorkflow BuildFluxWorkflow(ImageGenerationRequest request, ImageGenerationOptions? options = null)
 	{
 		options ??= DefaultImageGenerationOptions;
 
@@ -381,7 +392,7 @@ public class ComfyUIApiClient : IImageGenerator
 		if (seed < 0)
 			seed = _random.Next();
 
-		return JsonNode.Parse($$"""
+		var node = JsonNode.Parse($$"""
 		{
 			"6": {
 				"inputs": {
@@ -473,5 +484,7 @@ public class ComfyUIApiClient : IImageGenerator
 			}
 		}
 		""") ?? throw new InvalidOperationException("Failed to parse workflow JSON");
+
+		return new Workflow("Flux Workflow", node);
 	}
 }

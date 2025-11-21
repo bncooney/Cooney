@@ -28,10 +28,12 @@ internal static class WorkflowParser
 		}
 
 		// Validate JSON structure
+#pragma warning disable CS8604 // Possible null reference argument.
 		if (!IsValidJson(jsonContent))
 		{
 			return null;
 		}
+#pragma warning restore CS8604 // Possible null reference argument.
 
 		// Extract parameters using mustache pattern
 		var parameters = ExtractParameters(jsonContent);
@@ -75,6 +77,6 @@ internal static class WorkflowParser
 			}
 		}
 
-		return parameters.OrderBy(p => p, StringComparer.Ordinal).ToList();
+		return [.. parameters.OrderBy(p => p, StringComparer.Ordinal)];
 	}
 }
