@@ -1,9 +1,4 @@
 <Solution>
-  <Folder Name="/ATAK/">
-    <Project Path="CoT.Proto/CoT.Proto.csproj" />
-    <Project Path="CoT.Test/CoT.Test.csproj" Id="3b2d8367-ea96-4ea8-acb1-836b59dba00d" />
-    <Project Path="CoT/CoT.csproj" Id="ea30451e-d3cd-4c70-86a7-b5317f52bad3" />
-  </Folder>
   <Project Path="AI.Test/AI.Test.csproj" />
   <Project Path="AI/AI.csproj" />
 </Solution>
