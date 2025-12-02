@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.1</TargetFramework>
+		<Nullable>enable</Nullable>
+		<LangVersion>14.0</LangVersion>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<Title>Cooney.Common</Title>
+		<Authors>bncooney</Authors>
+		<Copyright>©2025 Neal Cooney</Copyright>
+		<PackageProjectUrl>https://github.com/bncooney/Cooney</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/bncooney/Cooney</RepositoryUrl>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<NoWarn>$(NoWarn);MEAI001</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Cooney.Common\Cooney.Common.csproj" />
+		<ProjectReference Include="..\Cooney.AI.SourceGenerators\Cooney.AI.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<AdditionalFiles Include="Workflows\*.json" />
+	</ItemGroup>
+
+</Project>

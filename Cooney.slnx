@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Cooney.AI.SourceGenerators/Cooney.AI.SourceGenerators.csproj" />
+  <Project Path="Cooney.AI.Test/Cooney.AI.Test.csproj" />
+  <Project Path="Cooney.AI/Cooney.AI.csproj" />
+  <Project Path="Cooney.Common/Cooney.Common.csproj" />
+  <Project Path="Cooney.Geospatial/Cooney.Geospatial.csproj" />
+</Solution>

@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.1</TargetFramework>
+		<Nullable>enable</Nullable>
+		<LangVersion>9.0</LangVersion>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<Title>Cooney.Common</Title>
+		<Authors>bncooney</Authors>
+		<Copyright>©2025 Neal Cooney</Copyright>
+		<PackageProjectUrl>https://github.com/bncooney/Cooney</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/bncooney/Cooney</RepositoryUrl>
+		<PackageTags>geospatial</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<Description>A .NET Standard 2.1 library providing coordinate transformations between geographic coordinates (Latitude, Longitude, Altitude) and local Cartesian coordinate systems.</Description>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\Cooney.Common\Cooney.Common.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	</ItemGroup>
+
+</Project>

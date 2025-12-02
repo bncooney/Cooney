@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.1</TargetFramework>
+		<Nullable>enable</Nullable>
+		<LangVersion>9.0</LangVersion>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<Title>Cooney.Common</Title>
+		<Authors>bncooney</Authors>
+		<Copyright>©2025 Neal Cooney</Copyright>
+		<PackageProjectUrl>https://github.com/bncooney/Cooney</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/bncooney/Cooney</RepositoryUrl>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.4.0" />
+	</ItemGroup>
+
+</Project>
