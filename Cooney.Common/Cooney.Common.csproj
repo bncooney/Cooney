@@ -10,10 +10,21 @@
 		<Copyright>©2025 Neal Cooney</Copyright>
 		<PackageProjectUrl>https://github.com/bncooney/Cooney</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/bncooney/Cooney</RepositoryUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageTags></PackageTags>
+		<Description>A .NET Standard 2.1 library providing fundamental mathematical types and utilities.</Description>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 	</PropertyGroup>
 
 	<ItemGroup>
 	  <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.4.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
 	</ItemGroup>
 
 </Project>

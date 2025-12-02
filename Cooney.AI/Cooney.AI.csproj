@@ -5,14 +5,15 @@
 		<Nullable>enable</Nullable>
 		<LangVersion>14.0</LangVersion>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-		<Title>Cooney.Common</Title>
+		<Title>Cooney.AI</Title>
 		<Authors>bncooney</Authors>
 		<Copyright>©2025 Neal Cooney</Copyright>
 		<PackageProjectUrl>https://github.com/bncooney/Cooney</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/bncooney/Cooney</RepositoryUrl>
-	</PropertyGroup>
-
-	<PropertyGroup>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageTags>ai;comfyui</PackageTags>
+		<Description>A .NET Standard 2.1 library providing a client for ComfyUI's API, implementing the `Microsoft.Extensions.AI` abstractions for image generation.</Description>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<NoWarn>$(NoWarn);MEAI001</NoWarn>
 	</PropertyGroup>
 
@@ -27,6 +28,13 @@
 
 	<ItemGroup>
 		<AdditionalFiles Include="Workflows\*.json" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
 	</ItemGroup>
 
 </Project>

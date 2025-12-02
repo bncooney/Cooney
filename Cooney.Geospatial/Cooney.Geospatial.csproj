@@ -10,9 +10,11 @@
 		<Copyright>©2025 Neal Cooney</Copyright>
 		<PackageProjectUrl>https://github.com/bncooney/Cooney</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/bncooney/Cooney</RepositoryUrl>
-		<PackageTags>geospatial</PackageTags>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<LicenseExpression>MIT</LicenseExpression>
+		<PackageTags>geospatial</PackageTags>
 		<Description>A .NET Standard 2.1 library providing coordinate transformations between geographic coordinates (Latitude, Longitude, Altitude) and local Cartesian coordinate systems.</Description>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 	</PropertyGroup>
 
 	<ItemGroup>
