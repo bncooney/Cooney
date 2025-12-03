@@ -15,7 +15,15 @@
 		<PackageTags>geospatial</PackageTags>
 		<Description>A .NET Standard 2.1 library providing coordinate transformations between geographic coordinates (Latitude, Longitude, Altitude) and local Cartesian coordinate systems.</Description>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageIcon>Cooney_Icon128.png</PackageIcon>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Include="..\Cooney_Icon128.png">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	</ItemGroup>
 
 	<ItemGroup>
 	  <ProjectReference Include="..\Cooney.Common\Cooney.Common.csproj" />

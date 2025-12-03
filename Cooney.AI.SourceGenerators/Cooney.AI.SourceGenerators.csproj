@@ -1,16 +1,39 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-	<TargetFramework>netstandard2.0</TargetFramework>
-	<Nullable>enable</Nullable>
-	<LangVersion>14.0</LangVersion>
-	<ImplicitUsings>enable</ImplicitUsings>
-	<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-	<IsRoslynComponent>true</IsRoslynComponent>
+		<TargetFramework>netstandard2.1</TargetFramework>
+		<Nullable>enable</Nullable>
+		<LangVersion>14.0</LangVersion>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<Title>Cooney.AI.SourceGenerators</Title>
+		<Authors>bncooney</Authors>
+		<Copyright>©2025 Neal Cooney</Copyright>
+		<PackageProjectUrl>https://github.com/bncooney/Cooney</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/bncooney/Cooney</RepositoryUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageTags>ai;comfyui</PackageTags>
+		<Description>Source generators for Cooney.AI</Description>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<NoWarn>$(NoWarn);MEAI001</NoWarn>
+		<PackageIcon>Cooney_Icon128.png</PackageIcon>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+		<IsRoslynComponent>true</IsRoslynComponent>
   </PropertyGroup>
 
   <ItemGroup>
 	<Folder Include="Models\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\Cooney.AI\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\Cooney_Icon128.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
