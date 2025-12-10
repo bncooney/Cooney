@@ -6,7 +6,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json.Nodes;
 
-namespace Cooney.AI;
+namespace Cooney.AI.ComfyUI;
 
 public class ComfyUIApiClient : IImageGenerator
 {

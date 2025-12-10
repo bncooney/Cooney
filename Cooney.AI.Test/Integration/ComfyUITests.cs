@@ -1,3 +1,4 @@
+using Cooney.AI.ComfyUI;
 using Cooney.AI.Workflows.Generated;
 using Microsoft.Extensions.AI;
 using System.Reflection;
