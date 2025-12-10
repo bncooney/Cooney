@@ -3,7 +3,10 @@
 > [!WARNING]
 > This library is *entirely* vibe coded. No assumptions should be made about its correctness for any purpose whatsoever.
 
-A .NET Standard 2.0 library providing a client for ComfyUI's API, implementing the `Microsoft.Extensions.AI` abstractions for image generation. This library allows you to queue workflows, monitor their execution, and retrieve generated images from a ComfyUI server.
+A .NET Standard 2.0 library providing AI integration tools and a ComfyUI API client implementing the `Microsoft.Extensions.AI` abstractions. This library includes:
+
+- **ComfyUI Integration**: Queue workflows, monitor execution, and retrieve generated images from a ComfyUI server
+- **AI Function Tools**: Pre-built tools (like file reading) that can be used with any `IChatClient` to extend AI model capabilities
 
 ## Features
 
@@ -13,6 +16,7 @@ A .NET Standard 2.0 library providing a client for ComfyUI's API, implementing t
 - **Source generation** - Automatically generates strongly-typed workflow classes from JSON files
 - **Server management** - Query available models, node types, and system stats
 - **Image upload/download** - Upload input images and retrieve generated outputs
+- **AI Tools** - Pre-built AI function tools for chat clients (file reading, etc.)
 
 ## Prerequisites
 
@@ -67,6 +71,155 @@ var imageData = (byte[])response.RawRepresentation!;
 await File.WriteAllBytesAsync("cyberpunk.png", imageData);
 ```
 
+## AI Tools
+
+The library provides pre-built AI function tools that can be used with any `IChatClient` from Microsoft.Extensions.AI. These tools enable AI models to perform actions like reading files, with more tools planned for future releases.
+
+### ReadFile Tool
+
+The `ReadFile` tool allows AI models to read file contents with support for large files through chunking.
+
+#### Basic Usage
+
+```csharp
+using Cooney.AI.Tools;
+using Microsoft.Extensions.AI;
+
+// Create a chat client (example with OllamaSharp)
+var chatClient = new ChatClientBuilder(new OllamaApiClient(
+    new Uri("http://127.0.0.1:11434/"),
+    "gpt-oss:20b"))
+    .UseFunctionInvocation()
+    .Build();
+
+// Create the ReadFile tool
+var readFileTool = new ReadFile();
+
+// Configure chat options with the tool
+var chatOptions = new ChatOptions
+{
+    Tools = [readFileTool]
+};
+
+// Ask the AI to analyze a file
+List<ChatMessage> chatHistory =
+[
+    new ChatMessage(ChatRole.System,
+        "You are a code analysis assistant. Use the read_file tool to analyze code structure."),
+    new ChatMessage(ChatRole.User,
+        "Please read the file at 'C:\\MyProject\\Program.cs' and explain what it does.")
+];
+
+// Get AI response (the AI will automatically call the read_file tool)
+var response = new StringBuilder();
+await foreach (ChatResponseUpdate item in chatClient.GetStreamingResponseAsync(
+    chatHistory,
+    chatOptions))
+{
+    response.Append(item.Text);
+}
+
+Console.WriteLine(response.ToString());
+```
+
+#### Chunked Reading for Large Files
+
+The ReadFile tool supports reading large files in chunks using `offset` and `limit` parameters:
+
+```csharp
+using Cooney.AI.Tools;
+using Microsoft.Extensions.AI;
+
+var readFileTool = new ReadFile();
+
+var chatOptions = new ChatOptions
+{
+    Tools = [readFileTool]
+};
+
+List<ChatMessage> chatHistory =
+[
+    new ChatMessage(ChatRole.System,
+        "You are a file analysis assistant. Use the read_file tool with offset and limit " +
+        "parameters to read large files in chunks. If was_truncated is true, read the next chunk."),
+    new ChatMessage(ChatRole.User,
+        "Read the large log file at 'C:\\Logs\\application.log' and find any error messages.")
+];
+
+// The AI will automatically use chunking if needed
+await foreach (ChatResponseUpdate item in chatClient.GetStreamingResponseAsync(
+    chatHistory,
+    chatOptions))
+{
+    Console.Write(item.Text);
+}
+```
+
+#### Tool Parameters
+
+The `read_file` function accepts the following parameters:
+
+- **file_path** (required): Absolute path to the file to read
+- **offset** (optional): Line number to start reading from (0-based, default: 0)
+- **limit** (optional): Maximum number of lines to read (max: 10000)
+
+#### Response Format
+
+The tool returns a JSON response with:
+
+```json
+{
+    "success": true,
+    "content": "file content here...",
+    "lines_read": 150,
+    "total_lines": 500,
+    "was_truncated": true,
+    "offset": 0,
+    "limit": 150
+}
+```
+
+If an error occurs:
+
+```json
+{
+    "success": false,
+    "error": "File not found: C:\\path\\to\\file.txt",
+    "error_type": "FileNotFound"
+}
+```
+
+#### Error Types
+
+- `InvalidParameter`: Invalid parameter values
+- `FileNotFound`: File does not exist
+- `AccessDenied`: Insufficient permissions to read the file
+- `IOException`: I/O error during file reading
+- `UnexpectedError`: Other unexpected errors
+
+#### Strategy for Large Files
+
+When working with large files, the AI model should:
+
+1. Call `read_file` with a `limit` (e.g., 1000 lines) to get the start of the file
+2. Check if `was_truncated` is `true` to determine if the file is large
+3. Read subsequent chunks by calling `read_file` again with an `offset` (e.g., offset=1000, limit=1000)
+4. Continue until all relevant content is found or the entire file is read
+
+#### Security Features
+
+- Requires absolute file paths (relative paths are rejected)
+- Returns structured error messages for permission issues
+- Enforces maximum line limit (10,000 lines) to prevent memory issues
+
+#### Example Integration Tests
+
+For complete working examples of the ReadFile tool in action, see the integration tests at [Cooney.AI.Test/Integration/ReadFileToolTests.cs](../Cooney.AI.Test/Integration/ReadFileToolTests.cs), which demonstrate:
+
+- AI models analyzing code structure using the ReadFile tool
+- Chunked reading of large files with offset/limit parameters
+- Error handling for invalid file paths
+
 ### Checking Server Health
 
 ```csharp
@@ -89,6 +242,61 @@ else
 ```
 
 ## API Reference
+
+### Tools Namespace
+
+#### ReadFile
+
+AI function tool for reading file contents with chunking support.
+
+```csharp
+public class ReadFile : AIFunction
+{
+    public override string Name => "read_file";
+
+    public override string Description =>
+        "Use read_file to read the content of a file. It's designed to handle large files safely. " +
+        "By default, it reads from the beginning of the file. " +
+        "Use offset (line number) and limit (number of lines) to read specific parts or chunks of a file. " +
+        "This is efficient for exploring large files.";
+}
+```
+
+**Parameters:**
+- `file_path` (string, required): The absolute path to the file to read
+- `offset` (integer, optional): The line number to start reading from (0-based, default: 0, minimum: 0)
+- `limit` (integer, optional): The maximum number of lines to read (minimum: 1, maximum: 10,000)
+
+**Returns:** `JsonObject` with the following structure:
+
+Success response:
+```csharp
+{
+    "success": true,
+    "content": "file content...",
+    "lines_read": 100,
+    "total_lines": 500,
+    "was_truncated": true,
+    "offset": 0,
+    "limit": 100  // Only included if limit was specified
+}
+```
+
+Error response:
+```csharp
+{
+    "success": false,
+    "error": "Error message",
+    "error_type": "ErrorType"  // InvalidParameter, FileNotFound, AccessDenied, IOException, UnexpectedError
+}
+```
+
+**Usage Notes:**
+- The tool reads entire file content into memory, then applies offset/limit
+- Supports .NET Standard 2.0 compatibility with async file reading
+- Validates file paths must be absolute (rejects relative paths)
+- Maximum line limit of 10,000 to prevent memory issues
+- Returns `was_truncated: true` when more lines are available beyond the limit
 
 ### ComfyUIApiClient
 
