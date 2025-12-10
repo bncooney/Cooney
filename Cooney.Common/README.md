@@ -3,7 +3,7 @@
 > [!WARNING]
 > This library is *entirely* vibe coded. No assumptions should be made about its correctness for any purpose whatsoever.
 
-A .NET Standard 2.1 library providing fundamental mathematical types and utilities. This library is designed to be framework-agnostic and can be used in Unity, non-Unity applications, and any .NET Standard 2.1 compatible environment.
+A .NET Standard 2.0 library providing fundamental mathematical types and utilities. This library is designed to be framework-agnostic and can be used in Unity, non-Unity applications, and any .NET Standard 2.0 compatible environment.
 
 ## Quick Start
 

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>netstandard2.1</TargetFramework>
+		<TargetFramework>netstandard2.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<LangVersion>9.0</LangVersion>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
@@ -13,7 +13,7 @@
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<LicenseExpression>MIT</LicenseExpression>
 		<PackageTags>geospatial</PackageTags>
-		<Description>A .NET Standard 2.1 library providing coordinate transformations between geographic coordinates (Latitude, Longitude, Altitude) and local Cartesian coordinate systems.</Description>
+		<Description>A .NET Standard 2.0 library providing coordinate transformations between geographic coordinates (Latitude, Longitude, Altitude) and local Cartesian coordinate systems.</Description>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageIcon>Cooney_Icon128.png</PackageIcon>
 	</PropertyGroup>

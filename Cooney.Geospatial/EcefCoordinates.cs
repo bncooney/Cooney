@@ -77,7 +77,14 @@ namespace Cooney.Geospatial
 
 		public override readonly int GetHashCode()
 		{
-			return HashCode.Combine(_x, _y, _z);
+			unchecked
+			{
+				int hash = 17;
+				hash = hash * 23 + _x.GetHashCode();
+				hash = hash * 23 + _y.GetHashCode();
+				hash = hash * 23 + _z.GetHashCode();
+				return hash;
+			}
 		}
 
 		public static bool operator ==(EcefCoordinates a, EcefCoordinates b)

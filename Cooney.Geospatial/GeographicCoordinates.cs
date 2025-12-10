@@ -43,7 +43,7 @@ namespace Cooney.Geospatial
 
 		public void Normalize()
 		{
-			_latitude = Math.Clamp(_latitude, -90.0, 90.0);
+			_latitude = Math.Max(-90.0, Math.Min(90.0, _latitude));
 
 			while (_longitude > 180.0)
 				_longitude -= 360.0;
@@ -76,7 +76,14 @@ namespace Cooney.Geospatial
 
 		public override readonly int GetHashCode()
 		{
-			return HashCode.Combine(_latitude, _longitude, _altitude);
+			unchecked
+			{
+				int hash = 17;
+				hash = hash * 23 + _latitude.GetHashCode();
+				hash = hash * 23 + _longitude.GetHashCode();
+				hash = hash * 23 + _altitude.GetHashCode();
+				return hash;
+			}
 		}
 
 		public static bool operator ==(GeographicCoordinates a, GeographicCoordinates b)

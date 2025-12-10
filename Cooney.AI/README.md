@@ -3,7 +3,7 @@
 > [!WARNING]
 > This library is *entirely* vibe coded. No assumptions should be made about its correctness for any purpose whatsoever.
 
-A .NET Standard 2.1 library providing a client for ComfyUI's API, implementing the `Microsoft.Extensions.AI` abstractions for image generation. This library allows you to queue workflows, monitor their execution, and retrieve generated images from a ComfyUI server.
+A .NET Standard 2.0 library providing a client for ComfyUI's API, implementing the `Microsoft.Extensions.AI` abstractions for image generation. This library allows you to queue workflows, monitor their execution, and retrieve generated images from a ComfyUI server.
 
 ## Features
 

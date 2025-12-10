@@ -3,9 +3,9 @@
 > [!WARNING]
 > This library is *entirely* vibe coded. No assumptions should be made about its correctness for any purpose whatsoever.
 
-A .NET Standard 2.1 library providing coordinate transformations between geographic coordinates (Latitude, Longitude, Altitude) and local Cartesian coordinate systems. This library is based on the WGS84 ellipsoid model and uses ECEF (Earth-Centered, Earth-Fixed) coordinates as an intermediate representation.
+A .NET Standard 2.0 library providing coordinate transformations between geographic coordinates (Latitude, Longitude, Altitude) and local Cartesian coordinate systems. This library is based on the WGS84 ellipsoid model and uses ECEF (Earth-Centered, Earth-Fixed) coordinates as an intermediate representation.
 
-This implementation is designed to be framework-agnostic and can be used in Unity, non-Unity applications, and any .NET Standard 2.1 compatible environment.
+This implementation is designed to be framework-agnostic and can be used in Unity, non-Unity applications, and any .NET Standard 2.0 compatible environment.
 
 ## Features
 

@@ -1,5 +1,4 @@
 using CommunityToolkit.Diagnostics;
-using Cooney.AI;
 using Microsoft.Extensions.AI;
 using System.Collections.Generic;
 using System.Linq;
