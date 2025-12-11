@@ -62,7 +62,7 @@ public class ChordWorkflowTests
 		string tempDirPath = Path.Combine(Path.GetTempPath(), assemblyName, timestamp);
 		Directory.CreateDirectory(tempDirPath);
 
-		foreach(var image in result.Contents.OfType<DataContent>())
+		foreach (var image in result.Contents.OfType<DataContent>())
 		{
 			Assert.IsNotNull(image.Name);
 
