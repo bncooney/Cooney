@@ -1,5 +1,6 @@
-using System.Text;
 using Cooney.AI.SourceGenerators.Models;
+using System.Reflection.Metadata;
+using System.Text;
 
 namespace Cooney.AI.SourceGenerators;
 
@@ -108,6 +109,7 @@ internal static class WorkflowCodeGenerator
 				var propertyName = ToPascalCase(parameter);
 				sb.AppendLine($"\t\tjson = json.Replace(\"{{{{{parameter}}}}}\", {propertyName});");
 			}
+			sb.AppendLine($"\t\tjson = json.Replace(\"8675309\", new global::System.Random().Next().ToString());");
 
 			sb.AppendLine("\t\treturn global::System.Text.Json.Nodes.JsonNode.Parse(json)!;");
 		}
