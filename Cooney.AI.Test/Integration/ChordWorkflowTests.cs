@@ -47,8 +47,9 @@ public class ChordWorkflowTests
 	public async Task ChordWorkflowImageGenerationTest()
 	{
 		var prompt = "texture of large new broken rocks with moss, top down view, seamless tileable";
-		var options = ComfyUIApiClient.DefaultImageGenerationOptions.Clone();
-		options.AdditionalProperties!["workflow"] = new ChordSdxlT2iImageToMaterialWorkflow(prompt);
+		var options = new ComfyUIImageGenerationOptions(
+			new ChordSdxlT2iImageToMaterialWorkflow(prompt, Random.Shared.Next().ToString())
+		);
 
 		var result = await _client.GenerateAsync(new ImageGenerationRequest
 		{

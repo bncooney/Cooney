@@ -15,23 +15,6 @@ public class ComfyUIApiClient : IImageGenerator
 	private readonly HttpClient _httpClient;
 	private readonly string _serverAddress;
 
-	public static readonly ImageGenerationOptions DefaultImageGenerationOptions = new()
-	{
-		AdditionalProperties = new()
-		{
-			{ "workflow", null },
-			{ "steps", 20 },
-			{ "cfg_scale", 1.0 },
-			{ "guidance_scale", 3.5 },
-			{ "seed", -1 },
-		},
-		Count = 1,
-		ImageSize = new(1024, 1024),
-		MediaType = "image/png",
-		ModelId = "flux1-dev-fp8.safetensors",
-		ResponseFormat = ImageGenerationResponseFormat.Data,
-	};
-
 	/// <summary>
 	/// Initializes a new instance of the ComfyUIClient.
 	/// </summary>
@@ -42,32 +25,25 @@ public class ComfyUIApiClient : IImageGenerator
 		_httpClient = new HttpClient { BaseAddress = new Uri(_serverAddress) };
 	}
 
-	public async Task<ImageGenerationResponse> GenerateAsync(ImageGenerationRequest request, ImageGenerationOptions? options = null, CancellationToken cancellationToken = default)
+	public async Task<ImageGenerationResponse> GenerateAsync(ImageGenerationRequest request, ImageGenerationOptions? options, CancellationToken cancellationToken = default)
 	{
-		int pollingIntervalMs = 3000;
-		int timeoutMs = 240_000;
+		Guard.IsAssignableToType<ComfyUIImageGenerationOptions>(options!);
+		var opts = (ComfyUIImageGenerationOptions)options!;
 
-		IWorkflow workflow;
-		if (options != null &&
-			options.AdditionalProperties != null &&
-			options.AdditionalProperties.TryGetValue("workflow", out var workflowObj) &&
-			workflowObj is IWorkflow customWorkflow)
-		{
-			workflow = customWorkflow;
-		}
-		else
-		{
-			workflow = BuildFluxWorkflow(request, options);
-		}
+		Guard.IsAssignableToType<Workflow>(opts.Workflow!);
+		var workflow = opts.Workflow!;
+
+		int pollingIntervalMs = 3000;
+		int timeoutMs = 300_000;
 
 		// Queue the workflow
-		var promptId = await QueuePromptAsync(workflow.Build(), cancellationToken: cancellationToken);
+		var promptId = await QueuePromptAsync(workflow.Build(), cancellationToken: cancellationToken).ConfigureAwait(false);
 
 		// Wait for completion
-		var finalStatus = await WaitForCompletionAsync(promptId, pollingIntervalMs, timeoutMs, cancellationToken);
+		var finalStatus = await WaitForCompletionAsync(promptId, pollingIntervalMs, timeoutMs, cancellationToken).ConfigureAwait(false);
 
 		// Extract and download the generated image
-		var images = await ExtractAndDownloadImagesAsync(promptId, finalStatus, cancellationToken) ?? [];
+		var images = await ExtractAndDownloadImagesAsync(promptId, finalStatus, cancellationToken).ConfigureAwait(false) ?? [];
 
 		return new ImageGenerationResponse
 		{
@@ -101,9 +77,9 @@ public class ComfyUIApiClient : IImageGenerator
 
 		while (attempt < maxAttempts)
 		{
-			await Task.Delay(pollingIntervalMs, cancellationToken);
+			await Task.Delay(pollingIntervalMs, cancellationToken).ConfigureAwait(false);
 
-			var status = await GetPromptStatusAsync(promptId, cancellationToken);
+			var status = await GetPromptStatusAsync(promptId, cancellationToken).ConfigureAwait(false);
 
 			// Check if the prompt is in the history (meaning it completed)
 			if (status?[promptId] != null)
@@ -138,7 +114,7 @@ public class ComfyUIApiClient : IImageGenerator
 
 				if (!string.IsNullOrEmpty(filename))
 				{
-					var imageData = await GetImageAsync(filename, subfolder, type, cancellationToken);
+					var imageData = await GetImageAsync(filename, subfolder, type, cancellationToken).ConfigureAwait(false);
 					contents.Add(new DataContent(imageData, "image/png") { Name = filename });
 				}
 			}
@@ -184,10 +160,10 @@ public class ComfyUIApiClient : IImageGenerator
 			Encoding.UTF8,
 			"application/json");
 
-		var response = await _httpClient.PostAsync("/prompt", content, cancellationToken);
+		var response = await _httpClient.PostAsync("/prompt", content, cancellationToken).ConfigureAwait(false);
 		response.EnsureSuccessStatusCode();
 
-		var responseJson = await response.Content.ReadAsStringAsync();
+		var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 		var responseObj = JsonNode.Parse(responseJson) ?? throw new InvalidOperationException("Failed to parse response");
 
 		return responseObj["prompt_id"]?.GetValue<string>()
@@ -202,10 +178,10 @@ public class ComfyUIApiClient : IImageGenerator
 	/// <returns>The prompt status information</returns>
 	private async Task<JsonNode> GetPromptStatusAsync(string promptId, CancellationToken cancellationToken = default)
 	{
-		var response = await _httpClient.GetAsync($"/history/{promptId}", cancellationToken);
+		var response = await _httpClient.GetAsync($"/history/{promptId}", cancellationToken).ConfigureAwait(false);
 		response.EnsureSuccessStatusCode();
 
-		var content = await response.Content.ReadAsStringAsync();
+		var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 		return JsonNode.Parse(content) ?? throw new InvalidOperationException("Failed to parse history response");
 	}
 
@@ -218,12 +194,12 @@ public class ComfyUIApiClient : IImageGenerator
 	{
 		try
 		{
-			var response = await _httpClient.GetAsync("/system_stats", cancellationToken);
+			var response = await _httpClient.GetAsync("/system_stats", cancellationToken).ConfigureAwait(false);
 
 			if (!response.IsSuccessStatusCode)
 				return null;
 
-			var content = await response.Content.ReadAsStringAsync();
+			var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 			return JsonNode.Parse(content);
 		}
 		catch (Exception)
@@ -239,10 +215,10 @@ public class ComfyUIApiClient : IImageGenerator
 	/// <returns>A list of node type names (e.g., "KSampler", "CheckpointLoaderSimple")</returns>
 	public async Task<List<string>> GetNodeTypesAsync(CancellationToken cancellationToken = default)
 	{
-		var response = await _httpClient.GetAsync("/object_info", cancellationToken);
+		var response = await _httpClient.GetAsync("/object_info", cancellationToken).ConfigureAwait(false);
 		response.EnsureSuccessStatusCode();
 
-		var content = await response.Content.ReadAsStringAsync();
+		var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 		var objectInfo = JsonNode.Parse(content)
 			?? throw new InvalidOperationException("Failed to parse object_info response");
 
@@ -257,10 +233,10 @@ public class ComfyUIApiClient : IImageGenerator
 	public async Task<List<string>> GetModelsAsync(CancellationToken cancellationToken = default)
 	{
 		// Get all model folder names
-		var foldersResponse = await _httpClient.GetAsync("/models", cancellationToken);
+		var foldersResponse = await _httpClient.GetAsync("/models", cancellationToken).ConfigureAwait(false);
 		foldersResponse.EnsureSuccessStatusCode();
 
-		var foldersContent = await foldersResponse.Content.ReadAsStringAsync();
+		var foldersContent = await foldersResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
 		var folders = JsonNode.Parse(foldersContent)
 			?? throw new InvalidOperationException("Failed to parse models folder response");
 
@@ -275,10 +251,10 @@ public class ComfyUIApiClient : IImageGenerator
 
 		foreach (var folder in folderNames)
 		{
-			var modelsResponse = await _httpClient.GetAsync($"/models/{folder}", cancellationToken);
+			var modelsResponse = await _httpClient.GetAsync($"/models/{folder}", cancellationToken).ConfigureAwait(false);
 			modelsResponse.EnsureSuccessStatusCode();
 
-			var modelsContent = await modelsResponse.Content.ReadAsStringAsync();
+			var modelsContent = await modelsResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
 			var models = JsonNode.Parse(modelsContent)
 				?? throw new InvalidOperationException($"Failed to parse models response for folder: {folder}");
 
@@ -325,10 +301,10 @@ public class ComfyUIApiClient : IImageGenerator
 			content.Add(new StringContent(subfolder), "subfolder");
 		}
 
-		var response = await _httpClient.PostAsync("/upload/image", content, cancellationToken);
+		var response = await _httpClient.PostAsync("/upload/image", content, cancellationToken).ConfigureAwait(false);
 		response.EnsureSuccessStatusCode();
 
-		var responseJson = await response.Content.ReadAsStringAsync();
+		var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 		var responseObj = JsonNode.Parse(responseJson) ?? throw new InvalidOperationException("Failed to parse upload response");
 
 		var name = responseObj["name"]?.GetValue<string>()
@@ -360,15 +336,29 @@ public class ComfyUIApiClient : IImageGenerator
 			query += $"&subfolder={Uri.EscapeDataString(subfolder)}";
 		}
 
-		var response = await _httpClient.GetAsync($"/view{query}", cancellationToken);
+		var response = await _httpClient.GetAsync($"/view{query}", cancellationToken).ConfigureAwait(false);
 		response.EnsureSuccessStatusCode();
 
-		return await response.Content.ReadAsByteArrayAsync();
+		return await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
 	}
 
-	private static IWorkflow BuildFluxWorkflow(ImageGenerationRequest request, ImageGenerationOptions? options = null)
+	private static Workflow BuildFluxWorkflow(ImageGenerationRequest request, ImageGenerationOptions? options = null)
 	{
-		options ??= DefaultImageGenerationOptions;
+		options ??= new()
+		{
+			AdditionalProperties = new()
+			{
+				{ "steps", 20 },
+				{ "cfg_scale", 1.0 },
+				{ "guidance_scale", 3.5 },
+				{ "seed", -1 },
+			},
+			Count = 1,
+			ImageSize = new(1024, 1024),
+			MediaType = "image/png",
+			ModelId = "flux1-dev-fp8.safetensors",
+			ResponseFormat = ImageGenerationResponseFormat.Data,
+		};
 
 		var width = options.ImageSize!.Value.Width;
 		var height = options.ImageSize!.Value.Height;
@@ -490,6 +480,6 @@ public class ComfyUIApiClient : IImageGenerator
 		}
 		""") ?? throw new InvalidOperationException("Failed to parse workflow JSON");
 
-		return new Workflow("Flux Workflow", node);
+		return new DynamicWorkflow(node);
 	}
 }

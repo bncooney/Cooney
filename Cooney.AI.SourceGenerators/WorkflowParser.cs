@@ -31,7 +31,7 @@ internal static class WorkflowParser
 #pragma warning disable CS8604 // Possible null reference argument.
 		if (!IsValidJson(jsonContent))
 		{
-			return null;
+			//return null;
 		}
 #pragma warning restore CS8604 // Possible null reference argument.
 

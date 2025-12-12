@@ -36,7 +36,7 @@
   },
   "4": {
     "inputs": {
-      "seed": 8675309,
+      "seed": {{seed}},
       "steps": 30,
       "cfg": 7,
       "sampler_name": "dpmpp_2m",

@@ -49,7 +49,7 @@ public sealed class ComfyUITests
 		var image = await _client.GenerateAsync(new ImageGenerationRequest
 		{
 			Prompt = "A beautiful landscape painting of mountains during sunset.",
-		}, cancellationToken: TestContext!.CancellationToken);
+		}, null, cancellationToken: TestContext!.CancellationToken);
 
 		Assert.IsNotNull(image);
 		Assert.IsNotNull(image.RawRepresentation);
@@ -70,25 +70,30 @@ public sealed class ComfyUITests
 	public async Task Text2VideoTest()
 	{
 		var prompt = "White numerals flip over on a blue background.";
-		var options = ComfyUIApiClient.DefaultImageGenerationOptions.Clone();
-		options.AdditionalProperties!["workflow"] = new Text2imageWanWorkflow("Square_512_512x512.png", prompt);
-		options.ImageSize = new(512, 512);
+		var options = new ComfyUIImageGenerationOptions(
+			new Text2imageWanWorkflow("Square_512_512x512.png", prompt)
+		)
+		{
+			ImageSize = new(512, 512)
+		};
 
 		var video = await _client.GenerateAsync(new ImageGenerationRequest
 		{
 			Prompt = prompt,
 		}, options, cancellationToken: TestContext!.CancellationToken);
 
-		Assert.IsNotNull(video);
-		Assert.IsNotNull(video.RawRepresentation);
+		var content = video.Contents[0] as DataContent;
+		Assert.IsNotNull(content, "Content should be of type DataContent");
+		var raw = content.RawRepresentation;
+		Assert.IsNotNull(raw, "Raw representation should not be null");
 
 		string assemblyName = Assembly.GetExecutingAssembly().GetName().Name!;
 		string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss-fff");
 		string tempDirPath = Path.Combine(Path.GetTempPath(), assemblyName, timestamp);
 		Directory.CreateDirectory(tempDirPath);
 
-		string filePath = Path.Combine(tempDirPath, "generated_image.png");
-		await File.WriteAllBytesAsync(filePath, (byte[])video.RawRepresentation, TestContext.CancellationToken);
+		string filePath = Path.Combine(tempDirPath, "generated_image.mp4");
+		await File.WriteAllBytesAsync(filePath, (byte[])raw, TestContext.CancellationToken);
 
 		TestContext.AddResultFile(filePath);
 	}
