@@ -13,7 +13,7 @@ This implementation is designed to be framework-agnostic and can be used in Unit
 - **WGS84 ellipsoid model** with geodetic calculations
 - **ENU (East-North-Up) coordinate system** support for local reference frames
 - **Great circle distance calculations** using the Haversine formula
-- **Bearing calculations** between geographic points
+- **Bearing calculations** between geographic points (initial and final bearings)
 - **Framework-agnostic design** - works with Unity, .NET Core, .NET Framework, and more
 - **Double precision** for transformations across large distances
 
@@ -249,6 +249,11 @@ public static class Wgs84Ellipsoid
 - `CalculateRadiusOfCurvature()`: Returns the radius of curvature in the prime vertical (N)
 - `CalculateMeridionalRadius()`: Returns the radius of curvature in the meridian (M)
 
+**Distance and Bearing Methods:**
+- `HaversineDistance()`: Calculates great-circle distance between two points using Haversine formula
+- `CalculateInitialBearing()`: Calculates the initial bearing (azimuth) from one point to another
+- `CalculateFinalBearing()`: Calculates the final bearing (azimuth) at the destination point
+
 ### CoordinateTransformations
 
 Static class providing transformations between ECEF, ENU, and Unity coordinate systems.
@@ -426,6 +431,38 @@ Console.WriteLine($"Equator radius: {ecef1.Magnitude():F1}m");
 Console.WriteLine($"Polar radius: {ecef2.Magnitude():F1}m");
 ```
 
+### Example 5: Haversine Distance Calculation
+
+```csharp
+using Cooney.Geospatial;
+
+// Calculate distance between Sydney and Melbourne
+var sydney = new GeographicCoordinates(-33.8688, 151.2093, 0);
+var melbourne = new GeographicCoordinates(-37.8136, 144.9631, 0);
+
+double distance = Wgs84Ellipsoid.HaversineDistance(sydney, melbourne);
+Console.WriteLine($"Sydney to Melbourne: {distance / 1000.0:F1} km");
+// Output: Sydney to Melbourne: 713.7 km
+```
+
+### Example 6: Bearing Calculations
+
+```csharp
+using Cooney.Geospatial;
+
+// Calculate bearing from Sydney to Melbourne
+var sydney = new GeographicCoordinates(-33.8688, 151.2093, 0);
+var melbourne = new GeographicCoordinates(-37.8136, 144.9631, 0);
+
+double initialBearing = Wgs84Ellipsoid.CalculateInitialBearing(sydney, melbourne);
+double finalBearing = Wgs84Ellipsoid.CalculateFinalBearing(sydney, melbourne);
+
+Console.WriteLine($"Initial bearing (Sydney to Melbourne): {initialBearing:F1}°");
+Console.WriteLine($"Final bearing (Melbourne arrival): {finalBearing:F1}°");
+// Output: Initial bearing (Sydney to Melbourne): 230.1°
+//         Final bearing (Melbourne arrival): 228.3°
+```
+
 ## Mathematical Foundation
 
 ### LLA to ECEF Conversion
@@ -491,6 +528,38 @@ Transformation:
   Unity.Y = ENU.z (Up)
   Unity.Z = ENU.y (North)
 ```
+
+### Haversine Formula
+
+The Haversine formula calculates the great-circle distance between two points on a sphere:
+
+```
+a = sin²(Δlat/2) + cos(lat1) · cos(lat2) · sin²(Δlon/2)
+c = 2 · atan2(√a, √(1−a))
+d = R · c
+```
+
+Where:
+- `Δlat`, `Δlon` are the differences in latitude and longitude (in radians)
+- `R` is Earth's radius (WGS84 semi-major axis: 6,378,137 meters)
+- `d` is the great-circle distance in meters
+
+### Bearing Calculation
+
+The initial bearing (azimuth) from point 1 to point 2 is calculated using spherical trigonometry:
+
+```
+y = sin(Δlon) · cos(lat2)
+x = cos(lat1) · sin(lat2) − sin(lat1) · cos(lat2) · cos(Δlon)
+bearing = atan2(y, x)
+```
+
+Where:
+- `Δlon` is the difference in longitude (in radians)
+- `lat1`, `lat2` are latitudes of the two points (in radians)
+- The result is normalized to 0-360° range, where 0° is north, 90° is east, etc.
+
+The final bearing is calculated as the initial bearing from point 2 to point 1, reversed by 180 degrees.
 
 ## Precision Considerations
 
@@ -571,8 +640,8 @@ Potential features for future releases:
 - Custom datum support (GRS80, NAD83)
 
 ### Advanced Features
-- Haversine distance calculation (great-circle distance)
-- Bearing calculation between points
+- ✅ Haversine distance calculation (great-circle distance) - **IMPLEMENTED**
+- ✅ Bearing calculation between points - **IMPLEMENTED**
 - Vincenty's formulae for high-accuracy geodesic calculations
 - Geoid height models (EGM96, EGM2008)
 
