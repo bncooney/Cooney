@@ -93,7 +93,11 @@ namespace TestNamespace
 
 		var chatOptions = new ChatOptions
 		{
-			Tools = [readFileTool]
+			AllowBackgroundResponses = true,
+			AllowMultipleToolCalls = true,
+			MaxOutputTokens = 32_000,
+			Tools = [readFileTool],
+			Temperature = 0.1f,
 		};
 
 		List<ChatMessage> chatHistory =
@@ -143,7 +147,11 @@ namespace TestNamespace
 
 		var chatOptions = new ChatOptions
 		{
-			Tools = [readFileTool]
+			AllowBackgroundResponses = true,
+			AllowMultipleToolCalls = true,
+			MaxOutputTokens = 32_000,
+			Tools = [readFileTool],
+			Temperature = 0.1f,
 		};
 
 		List<ChatMessage> chatHistory =
@@ -193,7 +201,11 @@ namespace TestNamespace
 
 		var chatOptions = new ChatOptions
 		{
-			Tools = [readFileTool]
+			AllowBackgroundResponses = true,
+			AllowMultipleToolCalls = true,
+			MaxOutputTokens = 32_000,
+			Tools = [readFileTool],
+			Temperature = 0.1f,
 		};
 
 		string nonExistentPath = Path.Combine(Path.GetTempPath(), $"NonExistent_{Guid.NewGuid()}.txt");

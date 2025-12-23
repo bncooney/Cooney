@@ -121,8 +121,8 @@ namespace Cooney.Geospatial
 
 			// Haversine formula
 			double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-			          Math.Cos(lat1Rad) * Math.Cos(lat2Rad) *
-			          Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+					  Math.Cos(lat1Rad) * Math.Cos(lat2Rad) *
+					  Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
 
 			double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
 
@@ -165,7 +165,7 @@ namespace Cooney.Geospatial
 			// Calculate bearing using spherical trigonometry
 			double y = Math.Sin(dLon) * Math.Cos(lat2Rad);
 			double x = Math.Cos(lat1Rad) * Math.Sin(lat2Rad) -
-			          Math.Sin(lat1Rad) * Math.Cos(lat2Rad) * Math.Cos(dLon);
+					  Math.Sin(lat1Rad) * Math.Cos(lat2Rad) * Math.Cos(dLon);
 
 			double bearingRad = Math.Atan2(y, x);
 
