@@ -24,6 +24,7 @@ public class CSharpLanguageServerTests
 {
 	private static string? _languageServerPath;
 	private static bool _languageServerAvailable;
+	private static string? _testDataDirectory;
 
 	[ClassInitialize]
 	public static void ClassInitialize(TestContext context)
@@ -35,6 +36,13 @@ public class CSharpLanguageServerTests
 		_languageServerPath ??= FindLanguageServer("OmniSharp");
 
 		_languageServerAvailable = _languageServerPath != null;
+
+		// Determine the test data directory path
+		// Assembly is in: ...\bin\Debug\net10.0\Cooney.LanguageServer.Test.dll
+		// We need: ...\TestData
+		var testAssemblyDirectory = Path.GetDirectoryName(typeof(CSharpLanguageServerTests).Assembly.Location);
+		_testDataDirectory = Path.Combine(testAssemblyDirectory ?? "", "..", "..", "..", "TestData");
+		_testDataDirectory = Path.GetFullPath(_testDataDirectory);
 
 		if (_languageServerAvailable)
 		{
@@ -137,102 +145,65 @@ public class CSharpLanguageServerTests
 			return;
 		}
 
-		// Create a temporary C# file
-		var tempDir = Path.Combine(Path.GetTempPath(), $"CooneyLspTest_{Guid.NewGuid():N}");
-		Directory.CreateDirectory(tempDir);
+		var testFile = Path.Combine(_testDataDirectory!, "DefinitionTest.cs");
+		if (!File.Exists(testFile))
+		{
+			Assert.Inconclusive($"Test file not found: {testFile}");
+			return;
+		}
+
+		var testCode = File.ReadAllText(testFile);
+
+		using var client = LanguageServerClient.CreateStdioClient(_languageServerPath!);
+
+		var initParams = new InitializeParams
+		{
+			ProcessId = Environment.ProcessId,
+			RootUri = UriExtensions.ToFileUri(_testDataDirectory!),
+			Capabilities = new ClientCapabilities
+			{
+				TextDocument = new TextDocumentClientCapabilities
+				{
+					Definition = new DefinitionCapability { LinkSupport = true }
+				}
+			}
+		};
+
+		await client.InitializeAsync(initParams, TestContext.CancellationToken);
+
+		// Open the document
+		var documentUri = UriExtensions.ToFileUri(testFile);
+		var textDocument = new TextDocumentIdentifier(documentUri);
+		await client.DidOpenTextDocumentAsync(textDocument, "csharp", 1, testCode, TestContext.CancellationToken);
+
+		// Give the server time to index - csharp-ls may need time to restore packages
+		await Task.Delay(5000, TestContext.CancellationToken);
 
 		try
 		{
-			// Create a simple .csproj file so csharp-ls understands the project structure
-			var projectFile = Path.Combine(tempDir, "TestProject.csproj");
-			var projectContent = @"<Project Sdk=""Microsoft.NET.Sdk"">
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-  </PropertyGroup>
-</Project>";
-			File.WriteAllText(projectFile, projectContent);
+			// Request definition for "Console" (line 8, character 12)
+			var position = new Position(line: 8, character: 12);
 
-			var testFile = Path.Combine(tempDir, "Program.cs");
-			var testCode = @"using System;
+			// Use a timeout to prevent hanging forever
+			using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+			using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken, timeoutCts.Token);
 
-namespace TestNamespace
-{
-    public class TestClass
-    {
-        public void TestMethod()
-        {
-            Console.WriteLine(""Hello"");
-        }
-    }
-}";
-			File.WriteAllText(testFile, testCode);
-
-			using var client = LanguageServerClient.CreateStdioClient(_languageServerPath!);
-
-			var initParams = new InitializeParams
-			{
-				ProcessId = Environment.ProcessId,
-				RootUri = UriExtensions.ToFileUri(tempDir),
-				Capabilities = new ClientCapabilities
-				{
-					TextDocument = new TextDocumentClientCapabilities
-					{
-						Definition = new DefinitionCapability { LinkSupport = true }
-					}
-				}
-			};
-
-			await client.InitializeAsync(initParams, TestContext.CancellationToken);
-
-			// Open the document
-			var documentUri = UriExtensions.ToFileUri(testFile);
-			var textDocument = new TextDocumentIdentifier(documentUri);
-			await client.DidOpenTextDocumentAsync(textDocument, "csharp", 1, testCode, TestContext.CancellationToken);
-
-			// Give the server time to index - csharp-ls may need time to restore packages
-			await Task.Delay(5000, TestContext.CancellationToken);
-
-			try
-			{
-				// Request definition for "Console" (line 8, character 12)
-				var position = new Position(line: 8, character: 12);
-
-				// Use a timeout to prevent hanging forever
-				using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-				using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken, timeoutCts.Token);
-
-				var locations = await client.GetDefinitionAsync(textDocument, position, linkedCts.Token);
-			}
-			catch (OperationCanceledException) when (TestContext.CancellationToken.IsCancellationRequested == false)
-			{
-				Assert.Fail("GetDefinitionAsync timed out after 5 seconds - request is hanging");
-			}
-			catch (LanguageServerException ex) when (ex.InnerException is StreamJsonRpc.ConnectionLostException)
-			{
-				// If the language server disconnects, it's likely due to configuration issues
-				// The important thing is that our client handled the initialization correctly
-				Assert.Inconclusive($"Language server disconnected: {ex.Message}");
-			}
-
-			await client.DidCloseTextDocumentAsync(textDocument, TestContext.CancellationToken);
-			await client.ShutdownAsync(TestContext.CancellationToken);
-			await client.ExitAsync();
+			var locations = await client.GetDefinitionAsync(textDocument, position, linkedCts.Token);
 		}
-		finally
+		catch (OperationCanceledException) when (TestContext.CancellationToken.IsCancellationRequested == false)
 		{
-			// Cleanup
-			try
-			{
-				if (Directory.Exists(tempDir))
-				{
-					Directory.Delete(tempDir, recursive: true);
-				}
-			}
-			catch
-			{
-				// Ignore cleanup errors
-			}
+			Assert.Fail("GetDefinitionAsync timed out after 5 seconds - request is hanging");
 		}
+		catch (LanguageServerException ex) when (ex.InnerException is StreamJsonRpc.ConnectionLostException)
+		{
+			// If the language server disconnects, it's likely due to configuration issues
+			// The important thing is that our client handled the initialization correctly
+			Assert.Inconclusive($"Language server disconnected: {ex.Message}");
+		}
+
+		await client.DidCloseTextDocumentAsync(textDocument, TestContext.CancellationToken);
+		await client.ShutdownAsync(TestContext.CancellationToken);
+		await client.ExitAsync();
 	}
 
 	[TestMethod]
@@ -244,107 +215,69 @@ namespace TestNamespace
 			return;
 		}
 
-		// Create a temporary C# file with a method that's referenced multiple times
-		var tempDir = Path.Combine(Path.GetTempPath(), $"CooneyLspTest_{Guid.NewGuid():N}");
-		Directory.CreateDirectory(tempDir);
+		var testFile = Path.Combine(_testDataDirectory!, "ReferencesTest.cs");
+		if (!File.Exists(testFile))
+		{
+			Assert.Inconclusive($"Test file not found: {testFile}");
+			return;
+		}
+
+		var testCode = File.ReadAllText(testFile);
+
+		using var client = LanguageServerClient.CreateStdioClient(_languageServerPath!);
+
+		var initParams = new InitializeParams
+		{
+			ProcessId = Environment.ProcessId,
+			RootUri = UriExtensions.ToFileUri(_testDataDirectory!),
+			Capabilities = new ClientCapabilities
+			{
+				TextDocument = new TextDocumentClientCapabilities
+				{
+					References = new ReferencesCapability()
+				}
+			}
+		};
+
+		await client.InitializeAsync(initParams, TestContext.CancellationToken);
+
+		var documentUri = UriExtensions.ToFileUri(testFile);
+		var textDocument = new TextDocumentIdentifier(documentUri);
+		await client.DidOpenTextDocumentAsync(textDocument, "csharp", 1, testCode, TestContext.CancellationToken);
+
+		// Give the server time to index - csharp-ls may need to restore packages
+		await Task.Delay(500, TestContext.CancellationToken);
 
 		try
 		{
-			// Create a simple .csproj file so csharp-ls understands the project structure
-			var projectFile = Path.Combine(tempDir, "TestProject.csproj");
-			var projectContent = @"<Project Sdk=""Microsoft.NET.Sdk"">
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-  </PropertyGroup>
-</Project>";
-			File.WriteAllText(projectFile, projectContent);
+			// Request references for "MyMethod" declaration (line 4, character 20)
+			var position = new Position(line: 4, character: 20);
 
-			var testFile = Path.Combine(tempDir, "Program.cs");
-			var testCode = @"namespace TestNamespace
-{
-    public class TestClass
-    {
-        public void MyMethod() { }
+			// Use a timeout to prevent hanging forever
+			using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+			using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken, timeoutCts.Token);
 
-        public void Caller()
-        {
-            MyMethod();
-            MyMethod();
-        }
-    }
-}";
-			File.WriteAllText(testFile, testCode);
+			var references = await client.GetReferencesAsync(textDocument, position, includeDeclaration: true, linkedCts.Token);
 
-			using var client = LanguageServerClient.CreateStdioClient(_languageServerPath!);
-
-			var initParams = new InitializeParams
+			if (references != null && references.Length > 0)
 			{
-				ProcessId = Environment.ProcessId,
-				RootUri = UriExtensions.ToFileUri(tempDir),
-				Capabilities = new ClientCapabilities
-				{
-					TextDocument = new TextDocumentClientCapabilities
-					{
-						References = new ReferencesCapability()
-					}
-				}
-			};
-
-			await client.InitializeAsync(initParams, TestContext.CancellationToken);
-
-			var documentUri = UriExtensions.ToFileUri(testFile);
-			var textDocument = new TextDocumentIdentifier(documentUri);
-			await client.DidOpenTextDocumentAsync(textDocument, "csharp", 1, testCode, TestContext.CancellationToken);
-
-			// Give the server time to index - csharp-ls may need time to restore packages
-			await Task.Delay(500, TestContext.CancellationToken);
-
-			try
-			{
-				// Request references for "MyMethod" declaration (line 4, character 20)
-				var position = new Position(line: 4, character: 20);
-
-				// Use a timeout to prevent hanging forever
-				using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-				using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken, timeoutCts.Token);
-
-				var references = await client.GetReferencesAsync(textDocument, position, includeDeclaration: true, linkedCts.Token);
-
-				if (references != null && references.Length > 0)
-				{
-					Assert.IsGreaterThanOrEqualTo(2, references.Length, $"Expected at least 2 references (declaration + calls), got {references.Length}");
-				}
+				Assert.IsGreaterThanOrEqualTo(2, references.Length, $"Expected at least 2 references (declaration + calls), got {references.Length}");
 			}
-			catch (OperationCanceledException) when (TestContext.CancellationToken.IsCancellationRequested == false)
-			{
-				Assert.Fail("GetReferencesAsync timed out after 5 seconds - request is hanging");
-			}
-			catch (LanguageServerException ex) when (ex.InnerException is StreamJsonRpc.ConnectionLostException)
-			{
-				// If the language server disconnects, it's likely due to configuration issues
-				// The important thing is that our client handled the initialization correctly
-				Assert.Inconclusive($"Language server disconnected: {ex.Message}");
-			}
-
-			await client.DidCloseTextDocumentAsync(textDocument, TestContext.CancellationToken);
-			await client.ShutdownAsync(TestContext.CancellationToken);
-			await client.ExitAsync();
 		}
-		finally
+		catch (OperationCanceledException) when (TestContext.CancellationToken.IsCancellationRequested == false)
 		{
-			// Cleanup
-			try
-			{
-				if (Directory.Exists(tempDir))
-				{
-					Directory.Delete(tempDir, recursive: true);
-				}
-			}
-			catch
-			{
-				// Ignore cleanup errors
-			}
+			Assert.Fail("GetReferencesAsync timed out after 5 seconds - request is hanging");
 		}
+		catch (LanguageServerException ex) when (ex.InnerException is StreamJsonRpc.ConnectionLostException)
+		{
+			// If the language server disconnects, it's likely due to configuration issues
+			// The important thing is that our client handled the initialization correctly
+			Assert.Inconclusive($"Language server disconnected: {ex.Message}");
+		}
+
+		await client.DidCloseTextDocumentAsync(textDocument, TestContext.CancellationToken);
+		await client.ShutdownAsync(TestContext.CancellationToken);
+		await client.ExitAsync();
 	}
 
 	[TestMethod]
@@ -356,116 +289,80 @@ namespace TestNamespace
 			return;
 		}
 
-		var tempDir = Path.Combine(Path.GetTempPath(), $"CooneyLspTest_{Guid.NewGuid():N}");
-		Directory.CreateDirectory(tempDir);
+		var testFile = Path.Combine(_testDataDirectory!, "DiagnosticsTest.cs");
+		if (!File.Exists(testFile))
+		{
+			Assert.Inconclusive($"Test file not found: {testFile}");
+			return;
+		}
+
+		var testCode = File.ReadAllText(testFile);
+
+		using var client = LanguageServerClient.CreateStdioClient(_languageServerPath!);
+
+		var diagnosticsReceived = new TaskCompletionSource<PublishDiagnosticsParams>();
+
+		client.DiagnosticsPublished += (sender, diagnostics) =>
+		{
+			if (diagnostics.Diagnostics.Length > 0)
+			{
+				diagnosticsReceived.TrySetResult(diagnostics);
+			}
+		};
+
+		var initParams = new InitializeParams
+		{
+			ProcessId = Environment.ProcessId,
+			RootUri = UriExtensions.ToFileUri(_testDataDirectory!),
+			Capabilities = new ClientCapabilities
+			{
+				TextDocument = new TextDocumentClientCapabilities
+				{
+					PublishDiagnostics = new PublishDiagnosticsCapability
+					{
+						RelatedInformation = true
+					}
+				}
+			}
+		};
+
+		await client.InitializeAsync(initParams, TestContext.CancellationToken);
+
+		var documentUri = UriExtensions.ToFileUri(testFile);
+		var textDocument = new TextDocumentIdentifier(documentUri);
+		await client.DidOpenTextDocumentAsync(textDocument, "csharp", 1, testCode, TestContext.CancellationToken);
 
 		try
 		{
-			// Create a simple .csproj file so csharp-ls understands the project structure
-			var projectFile = Path.Combine(tempDir, "TestProject.csproj");
-			var projectContent = @"<Project Sdk=""Microsoft.NET.Sdk"">
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-  </PropertyGroup>
-</Project>";
-			File.WriteAllText(projectFile, projectContent);
+			// Wait for diagnostics (with timeout)
+			var timeout = Task.Delay(10000, TestContext.CancellationToken);
+			var completedTask = await Task.WhenAny(diagnosticsReceived.Task, timeout);
 
-			var testFile = Path.Combine(tempDir, "Program.cs");
-			// Invalid code with syntax error
-			var testCode = @"namespace TestNamespace
-{
-    public class TestClass
-    {
-        public void MyMethod()
-        {
-            // Missing semicolon
-            var x = 5
-        }
-    }
-}";
-			File.WriteAllText(testFile, testCode);
-
-			using var client = LanguageServerClient.CreateStdioClient(_languageServerPath!);
-
-			var diagnosticsReceived = new TaskCompletionSource<PublishDiagnosticsParams>();
-
-			client.DiagnosticsPublished += (sender, diagnostics) =>
+			if (completedTask == timeout)
 			{
-				if (diagnostics.Diagnostics.Length > 0)
-				{
-					diagnosticsReceived.TrySetResult(diagnostics);
-				}
-			};
-
-			var initParams = new InitializeParams
-			{
-				ProcessId = Environment.ProcessId,
-				RootUri = UriExtensions.ToFileUri(tempDir),
-				Capabilities = new ClientCapabilities
-				{
-					TextDocument = new TextDocumentClientCapabilities
-					{
-						PublishDiagnostics = new PublishDiagnosticsCapability
-						{
-							RelatedInformation = true
-						}
-					}
-				}
-			};
-
-			await client.InitializeAsync(initParams, TestContext.CancellationToken);
-
-			var documentUri = UriExtensions.ToFileUri(testFile);
-			var textDocument = new TextDocumentIdentifier(documentUri);
-			await client.DidOpenTextDocumentAsync(textDocument, "csharp", 1, testCode, TestContext.CancellationToken);
-
-			try
-			{
-				// Wait for diagnostics (with timeout)
-				var timeout = Task.Delay(10000, TestContext.CancellationToken);
-				var completedTask = await Task.WhenAny(diagnosticsReceived.Task, timeout);
-
-				if (completedTask == timeout)
-				{
-					Assert.Inconclusive("Diagnostics not received within timeout. Server may not support diagnostics or took too long to analyze.");
-				}
-				else
-				{
-					var diagnostics = await diagnosticsReceived.Task;
-					Assert.IsNotNull(diagnostics);
-					Assert.IsNotEmpty(diagnostics.Diagnostics, "Expected at least one diagnostic for invalid code");
-
-					// Verify we have an error diagnostic
-					var hasError = diagnostics.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
-					Assert.IsTrue(hasError, "Expected at least one error diagnostic");
-				}
+				Assert.Inconclusive("Diagnostics not received within timeout. Server may not support diagnostics or took too long to analyze.");
 			}
-			catch (LanguageServerException ex) when (ex.InnerException is StreamJsonRpc.ConnectionLostException)
+			else
 			{
-				// If the language server disconnects, it's likely due to configuration issues
-				// The important thing is that our client handled the initialization correctly
-				Assert.Inconclusive($"Language server disconnected: {ex.Message}");
-			}
+				var diagnostics = await diagnosticsReceived.Task;
+				Assert.IsNotNull(diagnostics);
+				Assert.IsNotEmpty(diagnostics.Diagnostics, "Expected at least one diagnostic for invalid code");
 
-			await client.DidCloseTextDocumentAsync(textDocument, TestContext.CancellationToken);
-			await client.ShutdownAsync(TestContext.CancellationToken);
-			await client.ExitAsync();
+				// Verify we have an error diagnostic
+				var hasError = diagnostics.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+				Assert.IsTrue(hasError, "Expected at least one error diagnostic");
+			}
 		}
-		finally
+		catch (LanguageServerException ex) when (ex.InnerException is StreamJsonRpc.ConnectionLostException)
 		{
-			// Cleanup
-			try
-			{
-				if (Directory.Exists(tempDir))
-				{
-					Directory.Delete(tempDir, recursive: true);
-				}
-			}
-			catch
-			{
-				// Ignore cleanup errors
-			}
+			// If the language server disconnects, it's likely due to configuration issues
+			// The important thing is that our client handled the initialization correctly
+			Assert.Inconclusive($"Language server disconnected: {ex.Message}");
 		}
+
+		await client.DidCloseTextDocumentAsync(textDocument, TestContext.CancellationToken);
+		await client.ShutdownAsync(TestContext.CancellationToken);
+		await client.ExitAsync();
 	}
 
 	public TestContext TestContext { get; set; }

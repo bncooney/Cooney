@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -17,6 +17,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Cooney.LanguageServer\Cooney.LanguageServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="TestData\**" />
+    <None Include="TestData\**" />
   </ItemGroup>
 
 </Project>
