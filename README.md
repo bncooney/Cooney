@@ -14,6 +14,6 @@ Fundamental mathematical types and utilities including double-precision 3D vecto
 Coordinate transformations between geographic coordinates (Lat/Lon/Alt) and local Cartesian systems. Based on the WGS84 ellipsoid model with ECEF and ENU coordinate system support.
 
 ### [Cooney.AI](Cooney.AI)
-ComfyUI API client implementing Microsoft.Extensions.AI abstractions for image generation. Includes workflow management and source generation for strongly-typed workflows.
+AI library providing tools and abstractions using Microsoft.Extensions.AI. Includes pre-built AI function tools for extending chat client capabilities.
 
 See individual library READMEs for detailed documentation and examples.

@@ -11,8 +11,8 @@
 		<PackageProjectUrl>https://github.com/bncooney/Cooney</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/bncooney/Cooney</RepositoryUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<PackageTags>ai;comfyui</PackageTags>
-		<Description>A .NET Standard 2.0 library providing a client for ComfyUI's API, implementing the `Microsoft.Extensions.AI` abstractions for image generation.</Description>
+		<PackageTags>ai</PackageTags>
+		<Description>A .NET Standard 2.0 library providing AI abstractions and tools using Microsoft.Extensions.AI.</Description>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<NoWarn>$(NoWarn);MEAI001</NoWarn>
 		<PackageIcon>Cooney_Icon128.png</PackageIcon>
@@ -24,11 +24,6 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Cooney.Common\Cooney.Common.csproj" />
-		<ProjectReference Include="..\Cooney.AI.SourceGenerators\Cooney.AI.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<AdditionalFiles Include="Workflows\*.json" />
 	</ItemGroup>
 
 	<ItemGroup>

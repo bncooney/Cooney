@@ -11,8 +11,8 @@
 		<PackageProjectUrl>https://github.com/bncooney/Cooney</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/bncooney/Cooney</RepositoryUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<PackageTags>ai;comfyui</PackageTags>
-		<Description>Source generators for Cooney.AI</Description>
+		<PackageTags>ai;sourcegenerator</PackageTags>
+		<Description>Source generators for Cooney.AI library</Description>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<NoWarn>$(NoWarn);MEAI001</NoWarn>
 		<PackageIcon>Cooney_Icon128.png</PackageIcon>
@@ -20,10 +20,6 @@
 		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
 		<IsRoslynComponent>true</IsRoslynComponent>
   </PropertyGroup>
-
-  <ItemGroup>
-	<Folder Include="Models\" />
-  </ItemGroup>
 
   <ItemGroup>
     <None Include="..\Cooney.AI\README.md">
