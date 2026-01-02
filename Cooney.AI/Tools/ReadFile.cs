@@ -31,40 +31,39 @@ namespace Cooney.AI.Tools
 			"Use offset (line number) and limit (number of lines) to read specific parts or chunks of a file. " +
 			"This is efficient for exploring large files.";
 
-		public override JsonElement JsonSchema { get; }
+		private static readonly JsonElement s_jsonSchema;
+		public override JsonElement JsonSchema => s_jsonSchema;
 
-		public ReadFile()
+		static ReadFile()
 		{
-			var schema = new JsonObject
+			s_jsonSchema = JsonSerializer.SerializeToElement(new
 			{
-				["type"] = "object",
-				["properties"] = new JsonObject
+				type = "object",
+				properties = new
 				{
-					["file_path"] = new JsonObject
+					file_path = new
 					{
-						["type"] = "string",
-						["description"] = "The absolute path to the file to read"
+						type = "string",
+						description = "The absolute path to the file to read"
 					},
-					["offset"] = new JsonObject
+					offset = new
 					{
-						["type"] = "integer",
-						["description"] = "The line number to start reading from (0-based). Default is 0.",
-						["default"] = 0,
-						["minimum"] = 0
+						type = "integer",
+						description = "The line number to start reading from (0-based). Default is 0.",
+						@default = 0,
+						minimum = 0
 					},
-					["limit"] = new JsonObject
+					limit = new
 					{
-						["type"] = "integer",
-						["description"] = $"The maximum number of lines to read. If not specified, reads entire file. Maximum allowed: {MaxLineLimit}",
-						["minimum"] = 1,
-						["maximum"] = MaxLineLimit
+						type = "integer",
+						description = $"The maximum number of lines to read. If not specified, reads entire file. Maximum allowed: {MaxLineLimit}",
+						minimum = 1,
+						maximum = MaxLineLimit
 					}
 				},
-				["required"] = new JsonArray("file_path"),
-				["additionalProperties"] = false
-			};
-
-			JsonSchema = JsonSerializer.Deserialize<JsonElement>(schema.ToJsonString());
+				required = new[] { "file_path" },
+				additionalProperties = false
+			});
 		}
 
 		protected override async ValueTask<object?> InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)

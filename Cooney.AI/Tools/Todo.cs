@@ -16,7 +16,7 @@ namespace Cooney.AI.Tools;
 /// field so that the state persists only for the lifetime of the process.
 /// Replace the static store with a DB/file if you need persistence across calls.
 /// </remarks>
-public class TodoTool : AIFunction
+public class Todo : AIFunction
 {
 	// In‑memory store – thread‑safe enough for demo purposes.
 	private static readonly List<TodoItem> _store = [];
@@ -24,45 +24,51 @@ public class TodoTool : AIFunction
 	private const string ReadAction = "read";
 	private const string WriteAction = "write";
 
+	public override string Name => "todo";
+	public override string Description =>
+		"Manages a simple todo list. " +
+		"Use action='read' to get the current list of todos. " +
+		"Use action='write' with a 'todos' array to replace the entire list. " +
+		"Each todo item must have 'id', 'content', 'status', and 'priority'.";
+
 	// --------------------------------------------------------------------
 	// JSON schema – mirrors the structure described in the spec.
 	// --------------------------------------------------------------------
-	public override JsonElement JsonSchema { get; }
+	private static readonly JsonElement s_jsonSchema;
+	public override JsonElement JsonSchema => s_jsonSchema;
 
-	public TodoTool()
+	static Todo()
 	{
-		var schema = new JsonObject
+		s_jsonSchema = JsonSerializer.SerializeToElement(new
 		{
-			["type"] = "object",
-			["properties"] = new JsonObject
+			type = "object",
+			properties = new
 			{
-				["action"] = new JsonObject
+				action = new
 				{
-					["type"] = "string",
-					["enum"] = new JsonArray { ReadAction, WriteAction }
+					type = "string",
+					@enum = new[] { ReadAction, WriteAction }
 				},
-				["todos"] = new JsonObject
+				todos = new
 				{
-					["type"] = "array",
-					["items"] = new JsonObject
+					type = "array",
+					items = new
 					{
-						["type"] = "object",
-						["properties"] = new JsonObject
+						type = "object",
+						properties = new
 						{
-							["id"] = new JsonObject { ["type"] = "string" },
-							["content"] = new JsonObject { ["type"] = "string" },
-							["status"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray { "pending", "in_progress", "completed", "cancelled" } },
-							["priority"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray { "high", "medium", "low" } }
+							id = new { type = "string" },
+							content = new { type = "string" },
+							status = new { type = "string", @enum = new[] { "pending", "in_progress", "completed", "cancelled" } },
+							priority = new { type = "string", @enum = new[] { "high", "medium", "low" } }
 						},
-						["required"] = new JsonArray("id", "content", "status", "priority")
+						required = new[] { "id", "content", "status", "priority" }
 					}
 				}
 			},
-			["required"] = new JsonArray("action"),
-			["additionalProperties"] = false
-		};
-
-		JsonSchema = JsonSerializer.Deserialize<JsonElement>(schema.ToJsonString())!;
+			required = new[] { "action" },
+			additionalProperties = false
+		});
 	}
 
 	// --------------------------------------------------------------------
@@ -91,7 +97,7 @@ public class TodoTool : AIFunction
 	// --------------------------------------------------------------------
 	// READ – returns the current todo list (or an empty array)
 	// --------------------------------------------------------------------
-	private async ValueTask<object?> HandleReadAsync(AIFunctionArguments arguments, CancellationToken ct)
+	private async ValueTask<object?> HandleReadAsync(AIFunctionArguments _1, CancellationToken _2)
 	{
 		// No extra arguments are expected for a read.
 		// Return the whole list wrapped in the same shape the write expects.
@@ -107,7 +113,7 @@ public class TodoTool : AIFunction
 	// --------------------------------------------------------------------
 	// WRITE – replace the entire todo list with the supplied array.
 	// --------------------------------------------------------------------
-	private async ValueTask<object?> HandleWriteAsync(AIFunctionArguments arguments, CancellationToken ct)
+	private async ValueTask<object?> HandleWriteAsync(AIFunctionArguments arguments, CancellationToken _)
 	{
 		// The "todos" property must be present and be an array.
 		if (!arguments.TryGetValue("todos", out var todosObj) || todosObj is not JsonElement todosElement ||

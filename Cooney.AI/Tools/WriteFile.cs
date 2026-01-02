@@ -27,38 +27,37 @@ public class WriteFile : AIFunction
 		"Writes content to a file. By default the operation fails if the file already exists. " +
 		"Set overwrite=true to replace an existing file. Parent directories are created automatically.";
 
-	public override JsonElement JsonSchema { get; }
+	private static readonly JsonElement s_jsonSchema;
+	public override JsonElement JsonSchema => s_jsonSchema;
 
-	public WriteFile()
+	static WriteFile()
 	{
-		var schema = new JsonObject
+		s_jsonSchema = JsonSerializer.SerializeToElement(new
 		{
-			["type"] = "object",
-			["properties"] = new JsonObject
+			type = "object",
+			properties = new
 			{
-				["path"] = new JsonObject
+				path = new
 				{
-					["type"] = "string",
-					["description"] = "Absolute path to the file to write."
+					type = "string",
+					description = "Absolute path to the file to write."
 				},
-				["content"] = new JsonObject
+				content = new
 				{
-					["type"] = "string",
-					["description"] = "The text content to write to the file."
+					type = "string",
+					description = "The text content to write to the file."
 				},
-				["overwrite"] = new JsonObject
+				overwrite = new
 				{
-					["type"] = "boolean",
-					["description"] = "If true, an existing file will be overwritten. Default is false.",
-					["default"] = false,
-					["defaultValue"] = false
+					type = "boolean",
+					description = "If true, an existing file will be overwritten. Default is false.",
+					@default = false,
+					defaultValue = false
 				}
 			},
-			["required"] = new JsonArray("path", "content"),
-			["additionalProperties"] = false
-		};
-
-		JsonSchema = JsonSerializer.Deserialize<JsonElement>(schema.ToJsonString());
+			required = new[] { "path", "content" },
+			additionalProperties = false
+		});
 	}
 
 	protected override async ValueTask<object?> InvokeCoreAsync(
@@ -127,7 +126,7 @@ public class WriteFile : AIFunction
 #if NETSTANDARD2_0
 			await Task.Run(() => File.WriteAllText(filePath, content), cancellationToken);
 #else
-    await File.WriteAllTextAsync(filePath, content, cancellationToken);
+			await File.WriteAllTextAsync(filePath, content, cancellationToken);
 #endif
 		}
 		catch (UnauthorizedAccessException ex)
