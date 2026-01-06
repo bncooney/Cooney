@@ -1,0 +1,162 @@
+@page "/chat"
+@rendermode InteractiveServer
+@using Cooney.AI.WebApp.Services
+@using Microsoft.Extensions.AI
+@inject IChatService ChatService
+@implements IAsyncDisposable
+
+<PageTitle>AI Chat</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="16" Style="height: calc(100vh - 200px);">
+    <FluentStack Orientation="Orientation.Horizontal">
+        <h2>AI Assistant</h2>
+        <FluentSpacer />
+        <FluentButton Appearance="Appearance.Outline"
+                      OnClick="ClearChat"
+                      IconStart="@(new Icons.Regular.Size20.Delete())">
+            Clear Chat
+        </FluentButton>
+    </FluentStack>
+	<!-- Message History Display -->
+	<FluentStack Orientation="Orientation.Vertical"
+				 VerticalGap="12"
+				 Style="flex: 1; overflow-y: auto; padding: 16px; border: 1px solid var(--neutral-stroke-rest);">
+
+		@foreach (var message in ChatService.ChatHistory.Where(m => m.Role != ChatRole.System))
+		{
+			<ChatMessageDisplay Message="@message" />
+		}
+
+		@if (isProcessing)
+		{
+			<ChatMessageDisplay Message="@(new ChatMessage(ChatRole.Assistant, currentAssistantMessage))"
+							  IsStreaming="!string.IsNullOrEmpty(currentAssistantMessage)" />
+		}
+
+		<div @ref="messagesEnd"></div>
+	</FluentStack>
+
+	<!-- Input Area -->
+	<FluentStack Orientation="Orientation.Horizontal" VerticalGap="8" Style="width: 100%;">
+		<FluentTextField @bind-Value="userInput"
+						Placeholder="Type your message here..."
+						Style="flex: 1;"
+						@onkeydown="HandleKeyDown">
+		</FluentTextField>
+
+		<FluentButton Appearance="Appearance.Accent"
+					 OnClick="SendMessage"
+					 Disabled="@(string.IsNullOrWhiteSpace(userInput) || isProcessing)"
+					 IconStart="@(new Icons.Regular.Size20.Send())">
+			Send
+		</FluentButton>
+
+		<FluentButton Appearance="Appearance.Outline"
+					  OnClick="CancelGeneration"
+					  Disabled="@(!isProcessing)"
+					  IconStart="@(new Icons.Regular.Size20.Dismiss())">
+			Cancel
+		</FluentButton>
+	</FluentStack>
+
+	@if (!string.IsNullOrEmpty(errorMessage))
+	{
+		<FluentMessageBar Title="Error"
+						 Intent="MessageIntent.Error"
+						 OnDismiss="() => errorMessage = string.Empty">
+			@errorMessage
+		</FluentMessageBar>
+	}
+
+</FluentStack>
+
+@code {
+    private string userInput = string.Empty;
+    private string currentAssistantMessage = string.Empty;
+    private bool isProcessing = false;
+    private string errorMessage = string.Empty;
+    private ElementReference messagesEnd;
+    private CancellationTokenSource? _cancellationTokenSource;
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(userInput) || isProcessing)
+            return;
+
+        var message = userInput;
+        userInput = string.Empty;
+        isProcessing = true;
+        currentAssistantMessage = string.Empty;
+        errorMessage = string.Empty;
+
+        // Create new cancellation token source for this request
+        _cancellationTokenSource = new CancellationTokenSource();
+
+        try
+        {
+            await foreach (var update in ChatService.SendMessageAsync(message, _cancellationTokenSource.Token))
+            {
+                if (update.Text != null)
+                {
+                    currentAssistantMessage += update.Text;
+                    StateHasChanged(); // Update UI with streaming content
+                }
+            }
+
+            // Message is now in history, clear the streaming message
+            currentAssistantMessage = string.Empty;
+        }
+        catch (OperationCanceledException)
+        {
+            currentAssistantMessage = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            // Dispose the cancellation token source
+            if (_cancellationTokenSource != null)
+            {
+                _cancellationTokenSource.Dispose();
+                _cancellationTokenSource = null;
+            }
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendMessage();
+        }
+    }
+
+    private async Task ClearChat()
+    {
+        ChatService.ClearHistory();
+        currentAssistantMessage = string.Empty;
+        errorMessage = string.Empty;
+        StateHasChanged();
+    }
+
+    private void CancelGeneration()
+    {
+        _cancellationTokenSource?.Cancel();
+        userInput = string.Empty;
+    }
+
+	public async ValueTask DisposeAsync()
+	{
+		if (_cancellationTokenSource != null)
+		{
+			_cancellationTokenSource.Cancel();
+			_cancellationTokenSource.Dispose();
+			_cancellationTokenSource = null;
+		}
+		await Task.CompletedTask;
+	}
+}

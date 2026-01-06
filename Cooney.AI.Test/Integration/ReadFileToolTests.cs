@@ -1,5 +1,6 @@
 using Microsoft.Extensions.AI;
-using OllamaSharp;
+using OpenAI;
+using System.ClientModel;
 using System.Text;
 
 namespace Cooney.AI.Test.Integration;
@@ -21,11 +22,15 @@ public sealed class ReadFileToolTests
 	public static void ClassSetup(TestContext context)
 	{
 		// Initialize chat client once for all tests
-		_chatClient = new ChatClientBuilder(new OllamaApiClient(
-			new Uri("http://127.0.0.1:11434/"),
-			"gpt-oss:20b"))
-			.UseFunctionInvocation()
-			.Build();
+		_chatClient = new ChatClientBuilder(
+			new OpenAIClient(new ApiKeyCredential("ignored"), new OpenAIClientOptions
+			{
+				Endpoint = new Uri("http://promaxgb10-7d49.local:8000/v1"),
+			})
+			.GetChatClient("nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8")
+			.AsIChatClient())
+		.UseFunctionInvocation()
+		.Build();
 
 		// Create test file with structured content
 		_testFilePath = Path.Combine(Path.GetTempPath(), $"AIToolTest_{Guid.NewGuid()}.cs");

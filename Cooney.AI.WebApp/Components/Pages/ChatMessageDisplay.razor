@@ -1,0 +1,65 @@
+@using System.Globalization
+@using Microsoft.Extensions.AI
+
+<FluentCard Appearance="@GetCardAppearance()" Style="@GetCardStyle()">
+	<FluentStack Orientation="Orientation.Vertical" VerticalGap="4">
+		<FluentStack Orientation="Orientation.Horizontal">
+			<FluentBadge Appearance="@GetBadgeAppearance()">
+				@GetRoleDisplay()
+			</FluentBadge>
+			@if (IsStreaming)
+			{
+                <FluentProgressRing Style="width: 16px; height: 16px;" />
+			}
+		</FluentStack>
+
+		@if (string.IsNullOrEmpty(Message.Text) && !IsStreaming)
+		{
+			<FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+				<FluentSkeleton Width="100%" Shape="SkeletonShape.Rect" Style="height: 20px;" />
+				<FluentSkeleton Width="90%" Shape="SkeletonShape.Rect" Style="height: 20px;" />
+				<FluentSkeleton Width="70%" Shape="SkeletonShape.Rect" Style="height: 20px;" />
+			</FluentStack>
+		}
+		else
+		{
+			<div style="white-space: pre-wrap; word-wrap: break-word;">
+				@Message.Text
+			</div>
+		}
+	</FluentStack>
+</FluentCard>
+
+    @code {
+    [Parameter, EditorRequired]
+    public ChatMessage Message { get; set; } = null!;
+
+    [Parameter]
+    public bool IsStreaming { get; set; }
+
+    private string GetCardStyle()
+    {
+        return Message.Role == ChatRole.User
+            ? "margin-left: auto; max-width: 80%; height: fit-content;"
+            : "margin-right: auto; max-width: 80%; height: fit-content;";
+    }
+
+    private Appearance GetCardAppearance()
+    {
+        return Message.Role == ChatRole.User
+            ? Appearance.Accent
+            : Appearance.Neutral;
+    }
+
+    private Appearance GetBadgeAppearance()
+    {
+        return Message.Role == ChatRole.User
+            ? Appearance.Accent
+            : Appearance.Neutral;
+    }
+
+    private string GetRoleDisplay()
+    {
+        return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Message.Role.ToString());
+    }
+}
