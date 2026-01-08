@@ -25,4 +25,17 @@ public interface IChatService
 	/// Adds a system message to the chat history
 	/// </summary>
 	void AddSystemMessage(string message);
+
+	/// <summary>
+	/// Gets the maximum number of tokens that can be processed in a single context.
+	/// </summary>
+	/// <remarks>This value determines the largest input or output that can be handled at once. Exceeding this limit
+	/// may result in errors or truncated results.</remarks>
+	/// <returns>The maximum context length, in tokens, supported by the implementation.</returns>
+	int ContextLength { get; }
+
+	/// <summary>
+	/// Gets the total number of tokens used in the current conversation.
+	/// </summary>
+	int TotalTokenCount { get; }
 }

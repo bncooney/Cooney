@@ -13,14 +13,17 @@ public class ChatService : IChatService
 	private readonly IChatClient _chatClient;
 	private readonly ChatOptions _chatOptions;
 	private readonly List<ChatMessage> _chatHistory;
+	private readonly int _contextLength;
+	private int _totalTokenCount = 0;
 
+	public int ContextLength => _contextLength;
+	public int TotalTokenCount => _totalTokenCount;
 	public IReadOnlyList<ChatMessage> ChatHistory => _chatHistory.AsReadOnly();
 
 	public ChatService(IOptions<AIServiceOptions> options)
 	{
 		var config = options.Value;
 
-		// Initialize chat client using the pattern from IntegrationTests.cs
 		_chatClient = new ChatClientBuilder(
 			new OpenAIClient(
 				new ApiKeyCredential(config.ApiKey),
@@ -33,7 +36,6 @@ public class ChatService : IChatService
 			.UseFunctionInvocation()
 			.Build();
 
-		// Configure chat options with all 5 tools
 		_chatOptions = new ChatOptions
 		{
 			AllowBackgroundResponses = config.ChatOptions.AllowBackgroundResponses,
@@ -46,6 +48,9 @@ public class ChatService : IChatService
 				new WordCount(),
 			]
 		};
+
+		// 
+		_contextLength = config.ChatOptions.ContextLength;
 
 		// Initialize chat history with system prompt
 		_chatHistory =
@@ -75,6 +80,12 @@ public class ChatService : IChatService
 				assistantResponse.Append(update.Text);
 			}
 
+			// Track token usage
+			if (update.Contents.OfType<UsageContent>().FirstOrDefault() is UsageContent usage)
+			{
+				_totalTokenCount = (int)(usage.Details?.TotalTokenCount ?? _totalTokenCount);
+			}
+
 			yield return update;
 		}
 
@@ -94,6 +105,7 @@ public class ChatService : IChatService
 		{
 			_chatHistory.Add(systemMessage);
 		}
+		_totalTokenCount = 0;
 	}
 
 	public void AddSystemMessage(string message)

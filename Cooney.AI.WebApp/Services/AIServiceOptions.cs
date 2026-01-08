@@ -13,7 +13,8 @@ public class AIServiceOptions
 
 public class ChatOptionsConfig
 {
-	public int MaxOutputTokens { get; set; } = 32000;
+	public int ContextLength { get; set; } = 256_000;
+	public int MaxOutputTokens { get; set; } = 32_000;
 	public float Temperature { get; set; } = 0.1f;
 	public bool AllowBackgroundResponses { get; set; } = true;
 	public bool AllowMultipleToolCalls { get; set; } = true;

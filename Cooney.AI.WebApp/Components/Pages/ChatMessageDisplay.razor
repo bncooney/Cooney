@@ -1,5 +1,6 @@
 @using System.Globalization
 @using Microsoft.Extensions.AI
+@using Markdig;
 
 <FluentCard Appearance="@GetCardAppearance()" Style="@GetCardStyle()">
 	<FluentStack Orientation="Orientation.Vertical" VerticalGap="4">
@@ -13,18 +14,17 @@
 			}
 		</FluentStack>
 
-		@if (string.IsNullOrEmpty(Message.Text) && !IsStreaming)
+		@if (string.IsNullOrEmpty(Message.Text))
 		{
 			<FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
 				<FluentSkeleton Width="100%" Shape="SkeletonShape.Rect" Style="height: 20px;" />
 				<FluentSkeleton Width="90%" Shape="SkeletonShape.Rect" Style="height: 20px;" />
-				<FluentSkeleton Width="70%" Shape="SkeletonShape.Rect" Style="height: 20px;" />
 			</FluentStack>
 		}
 		else
 		{
-			<div style="white-space: pre-wrap; word-wrap: break-word;">
-				@Message.Text
+			<div>
+                @((MarkupString)FormattedMessage)
 			</div>
 		}
 	</FluentStack>
@@ -36,6 +36,12 @@
 
     [Parameter]
     public bool IsStreaming { get; set; }
+
+    private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder()
+        .UsePipeTables()
+        .Build();
+
+    public MarkupString FormattedMessage => (MarkupString)Markdown.ToHtml(Message.Text, MarkdownPipeline);
 
     private string GetCardStyle()
     {
