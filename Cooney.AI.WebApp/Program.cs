@@ -1,5 +1,5 @@
 using Cooney.AI.WebApp.Components;
-using Cooney.AI.WebApp.Services;
+using Cooney.AI.Services;
 using Microsoft.FluentUI.AspNetCore.Components;
 
 namespace Cooney.AI.WebApp

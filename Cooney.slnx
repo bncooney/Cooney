@@ -2,6 +2,7 @@
   <Project Path="Cooney.AI.SourceGenerators/Cooney.AI.SourceGenerators.csproj" />
   <Project Path="Cooney.AI.Test/Cooney.AI.Test.csproj" />
   <Project Path="Cooney.AI.WebApp/Cooney.AI.WebApp.csproj" Id="07a0f474-7b2e-4e9d-8406-1360ddd7fd78" />
+  <Project Path="Cooney.AI.WindowsDesktop/Cooney.AI.WindowsDesktop.csproj" Id="a6cb5dce-d6a4-4371-9118-1748fbf9a3b6" />
   <Project Path="Cooney.AI/Cooney.AI.csproj" />
   <Project Path="Cooney.Common/Cooney.Common.csproj" />
   <Project Path="Cooney.Geospatial.Test/Cooney.Geospatial.Test.csproj" Id="387980f8-91d0-4c91-a271-b9432ce945bc" />

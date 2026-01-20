@@ -1,0 +1,16 @@
+<Application x:Class="Cooney.AI.WindowsDesktop.App"
+              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+              xmlns:converters="clr-namespace:Cooney.AI.WindowsDesktop.Converters">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Darcula Theme -->
+                <ResourceDictionary Source="Themes/DarculaTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- App-wide resources -->
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

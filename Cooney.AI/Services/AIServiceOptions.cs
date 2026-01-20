@@ -1,4 +1,4 @@
-namespace Cooney.AI.WebApp.Services;
+namespace Cooney.AI.Services;
 
 public class AIServiceOptions
 {

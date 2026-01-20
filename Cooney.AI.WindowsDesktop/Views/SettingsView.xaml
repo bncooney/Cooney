@@ -1,0 +1,42 @@
+<UserControl x:Class="Cooney.AI.WindowsDesktop.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:Cooney.AI.WindowsDesktop.ViewModels"
+             xmlns:helpers="clr-namespace:Cooney.AI.WindowsDesktop.Helpers"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel, IsDesignTimeCreatable=False}"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid Margin="20">
+        <TextBlock Text="Settings"
+                   FontSize="24"
+                   FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}"
+                   VerticalAlignment="Top"/>
+
+        <!-- Theme Selection -->
+        <GroupBox Header="Appearance"
+                  Margin="0,40,0,0"
+                  Foreground="{DynamicResource TextPrimaryBrush}"
+                  BorderBrush="{DynamicResource BorderPrimaryBrush}"
+                  BorderThickness="1"
+                  Padding="16,12,16,16">
+            <StackPanel>
+                <TextBlock Text="Theme"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           Margin="0,0,0,8"/>
+                <ComboBox SelectedValue="{Binding SelectedTheme, Mode=TwoWay}"
+                          SelectedValuePath="Tag"
+                          Foreground="{DynamicResource TextPrimaryBrush}"
+                          Background="{DynamicResource ControlBackgroundBrush}"
+                          BorderBrush="{DynamicResource BorderPrimaryBrush}">
+                    <ComboBoxItem Content="Darcula" Tag="{x:Static helpers:ApplicationTheme.Darcula}"/>
+                    <ComboBoxItem Content="Dracula" Tag="{x:Static helpers:ApplicationTheme.Dracula}"/>
+                </ComboBox>
+            </StackPanel>
+        </GroupBox>
+    </Grid>
+</UserControl>

@@ -1,0 +1,17 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Dracula Theme - Aggregates all theme resources -->
+    <ResourceDictionary.MergedDictionaries>
+        <!-- Colors must be loaded first -->
+        <ResourceDictionary Source="Colors/DraculaColors.xaml"/>
+
+        <!-- Control Styles -->
+        <ResourceDictionary Source="Controls/ButtonStyles.xaml"/>
+        <ResourceDictionary Source="Controls/TextBoxStyles.xaml"/>
+        <ResourceDictionary Source="Controls/ListBoxStyles.xaml"/>
+        <ResourceDictionary Source="Controls/ScrollViewerStyles.xaml"/>
+        <ResourceDictionary Source="Controls/BorderStyles.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+</ResourceDictionary>

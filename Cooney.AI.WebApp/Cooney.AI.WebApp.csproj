@@ -12,6 +12,7 @@
     <PackageReference Include="Markdig" Version="0.44.0" />
     <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.13.2" />
     <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="4.13.2" />
+    <PackageReference Include="Z.Blazor.Diagrams" Version="3.0.4" />
   </ItemGroup>
 
   <ItemGroup>

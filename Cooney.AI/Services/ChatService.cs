@@ -1,4 +1,6 @@
 using Microsoft.Extensions.AI;
+using System.Linq;
+using System.Collections.Generic;
 using Microsoft.Extensions.Options;
 using OpenAI;
 using System.ClientModel;
@@ -6,7 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using Cooney.AI.Tools;
 
-namespace Cooney.AI.WebApp.Services;
+namespace Cooney.AI.Services;
 
 public class ChatService : IChatService
 {
@@ -30,9 +32,10 @@ public class ChatService : IChatService
 				new OpenAIClientOptions
 				{
 					Endpoint = new Uri(config.Endpoint),
-				})
-				.GetChatClient(config.Model)
-				.AsIChatClient())
+				}
+			)
+			.GetChatClient(config.Model)
+			.AsIChatClient())
 			.UseFunctionInvocation()
 			.Build();
 
@@ -49,10 +52,8 @@ public class ChatService : IChatService
 			]
 		};
 
-		// 
 		_contextLength = config.ChatOptions.ContextLength;
 
-		// Initialize chat history with system prompt
 		_chatHistory =
 		[
 			new(ChatRole.System, config.SystemPrompt)
@@ -63,11 +64,9 @@ public class ChatService : IChatService
 		string userMessage,
 		[EnumeratorCancellation] CancellationToken cancellationToken = default)
 	{
-		// Add user message to history
 		var userChatMessage = new ChatMessage(ChatRole.User, userMessage);
 		_chatHistory.Add(userChatMessage);
 
-		// Stream responses
 		var assistantResponse = new StringBuilder();
 
 		await foreach (var update in _chatClient.GetStreamingResponseAsync(
@@ -80,7 +79,6 @@ public class ChatService : IChatService
 				assistantResponse.Append(update.Text);
 			}
 
-			// Track token usage
 			if (update.Contents.OfType<UsageContent>().FirstOrDefault() is UsageContent usage)
 			{
 				_totalTokenCount = (int)(usage.Details?.TotalTokenCount ?? _totalTokenCount);
@@ -89,7 +87,6 @@ public class ChatService : IChatService
 			yield return update;
 		}
 
-		// Add complete assistant response to history
 		if (assistantResponse.Length > 0)
 		{
 			_chatHistory.Add(new ChatMessage(ChatRole.Assistant, assistantResponse.ToString()));
@@ -98,7 +95,6 @@ public class ChatService : IChatService
 
 	public void ClearHistory()
 	{
-		// Keep only system message
 		var systemMessage = _chatHistory.FirstOrDefault(m => m.Role == ChatRole.System);
 		_chatHistory.Clear();
 		if (systemMessage != null)

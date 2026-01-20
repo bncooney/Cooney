@@ -1,6 +1,8 @@
-using Microsoft.Extensions.AI;
+namespace Cooney.AI.Services;
 
-namespace Cooney.AI.WebApp.Services;
+using System.Collections.Generic;
+using System.Threading;
+using Microsoft.Extensions.AI;
 
 public interface IChatService
 {
@@ -29,9 +31,6 @@ public interface IChatService
 	/// <summary>
 	/// Gets the maximum number of tokens that can be processed in a single context.
 	/// </summary>
-	/// <remarks>This value determines the largest input or output that can be handled at once. Exceeding this limit
-	/// may result in errors or truncated results.</remarks>
-	/// <returns>The maximum context length, in tokens, supported by the implementation.</returns>
 	int ContextLength { get; }
 
 	/// <summary>

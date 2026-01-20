@@ -2,8 +2,6 @@ using Microsoft.Extensions.AI;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Cooney.AI.Tools
 {
