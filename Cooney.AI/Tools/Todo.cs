@@ -1,25 +1,31 @@
 using Microsoft.Extensions.AI;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
+using Cooney.AI.Models;
+using Cooney.AI.Services;
+using System.Collections.Generic;
 
 namespace Cooney.AI.Tools;
 
 /// <summary>
 /// Simple todo‑list manager that can be called as an AI function.
-/// Supports "read" (return current list) and "write" (replace the whole list).
+/// Supports "read" (return current list) and "write" (upsert/clear).
 /// </summary>
 /// <remarks>
-/// The implementation is deliberately lightweight – it stores the list in a static
-/// field so that the state persists only for the lifetime of the process.
-/// Replace the static store with a DB/file if you need persistence across calls.
+/// Pass an <see cref="ITodoService"/> for persistent storage; omit it to fall back to
+/// an in-process <see cref="StubTodoService"/>. Pass a <paramref name="contextId"/> to
+/// scope the list to a specific context (e.g. a conversation id).
 /// </remarks>
 public class Todo : AIFunction
 {
-	// In‑memory store – thread‑safe enough for demo purposes.
-	private static readonly List<TodoItem> _store = [];
+	private readonly ITodoService _service;
+	private readonly Guid? _contextId;
+
+	public Todo(ITodoService? service = null, Guid? contextId = null)
+	{
+		_service = service ?? new StubTodoService();
+		_contextId = contextId;
+	}
 
 	private const string ReadAction = "read";
 	private const string WriteAction = "write";
@@ -27,18 +33,41 @@ public class Todo : AIFunction
 	public override string Name => "todo";
 	public override string Description =>
 		"Manages a simple todo list. " +
-		"Use action='read' to get the current list of todos. " +
-		"Use action='write' with a 'todos' array to replace the entire list. " +
-		"Each todo item must have 'id', 'content', 'status', and 'priority'.";
+		"Use action='read' (or 'list'/'get') to get the current list. " +
+		"Use action='write' with a 'todos' array to upsert todos: items whose 'id' matches an existing todo are updated in place; items with a new or omitted 'id' are appended. Unmentioned todos are left unchanged. Pass an empty array to clear the entire list. " +
+		"Each todo item requires 'content'. " +
+		"'id' is optional and will be auto-generated if omitted; supply an existing id to update that item. " +
+		"'status' defaults to 'pending' if omitted; accepted values (and common aliases): pending/todo, in_progress/wip/active, completed/done, cancelled/canceled. " +
+		"'priority' defaults to 'medium' if omitted; accepted values (and common aliases): high/urgent/critical, medium/normal, low/minor.";
 
-	// --------------------------------------------------------------------
-	// JSON schema – mirrors the structure described in the spec.
-	// --------------------------------------------------------------------
 	private static readonly JsonElement s_jsonSchema;
 	public override JsonElement JsonSchema => s_jsonSchema;
 
 	static Todo()
 	{
+		var todoItemSchema = new
+		{
+			type = "object",
+			properties = new
+			{
+				id = new { type = "string", description = "Optional. Auto-generated if omitted." },
+				content = new { type = "string" },
+				status = new
+				{
+					type = "string",
+					description = "Defaults to 'pending' if omitted.",
+					@enum = new[] { "pending", "in_progress", "completed", "cancelled" }
+				},
+				priority = new
+				{
+					type = "string",
+					description = "Defaults to 'medium' if omitted.",
+					@enum = new[] { "high", "medium", "low" }
+				}
+			},
+			required = new[] { "content" }
+		};
+
 		s_jsonSchema = JsonSerializer.SerializeToElement(new
 		{
 			type = "object",
@@ -52,145 +81,128 @@ public class Todo : AIFunction
 				todos = new
 				{
 					type = "array",
-					items = new
-					{
-						type = "object",
-						properties = new
-						{
-							id = new { type = "string" },
-							content = new { type = "string" },
-							status = new { type = "string", @enum = new[] { "pending", "in_progress", "completed", "cancelled" } },
-							priority = new { type = "string", @enum = new[] { "high", "medium", "low" } }
-						},
-						required = new[] { "id", "content", "status", "priority" }
-					}
+					items = todoItemSchema
 				}
 			},
 			required = new[] { "action" },
-			additionalProperties = false
+			@if = new { properties = new { action = new { @const = WriteAction } } },
+			then = new { required = new[] { "action", "todos" } }
 		});
 	}
 
-	// --------------------------------------------------------------------
-	// Core logic – called by the AI runtime.
-	// --------------------------------------------------------------------
 	protected override async ValueTask<object?> InvokeCoreAsync(
 		AIFunctionArguments arguments,
 		CancellationToken cancellationToken)
 	{
-		// --------------------------------------------------------------------
-		// 1️⃣  Extract the "action" parameter (required)
-		// --------------------------------------------------------------------
-		if (!arguments.TryGetValue("action", out var actionObj) || actionObj is not string action)
-		{
-			return CreateErrorResponse("Missing required parameter: action", "InvalidParameter");
-		}
+		arguments.TryGetValue("action", out var actionObj);
 
-		// --------------------------------------------------------------------
-		// 2️⃣  Dispatch based on the action
-		// --------------------------------------------------------------------
-		return action.Equals(ReadAction, StringComparison.OrdinalIgnoreCase)
-			? await HandleReadAsync(arguments, cancellationToken)
+		var action = actionObj switch
+		{
+			string s => s,
+			JsonElement { ValueKind: JsonValueKind.String } je => je.GetString(),
+			_ => null
+		};
+
+		// No action or empty action defaults to read.
+		var normalizedAction = action?.Trim().ToLowerInvariant() switch
+		{
+			null or "" or "read" or "list" or "get" => ReadAction,
+			_ => WriteAction
+		};
+
+		return normalizedAction == ReadAction
+			? await HandleReadAsync(cancellationToken)
 			: await HandleWriteAsync(arguments, cancellationToken);
 	}
 
-	// --------------------------------------------------------------------
-	// READ – returns the current todo list (or an empty array)
-	// --------------------------------------------------------------------
-	private async ValueTask<object?> HandleReadAsync(AIFunctionArguments _1, CancellationToken _2)
+	private async ValueTask<object?> HandleReadAsync(CancellationToken ct)
 	{
-		// No extra arguments are expected for a read.
-		// Return the whole list wrapped in the same shape the write expects.
-		var response = new JsonObject
+		var list = await _service.ReadAsync(_contextId, ct);
+		return new JsonObject
 		{
 			["action"] = ReadAction,
-			["todos"] = ToJsonArray(_store)
+			["todos"] = ToJsonArray(list.Items)
 		};
-
-		return response;
 	}
 
-	// --------------------------------------------------------------------
-	// WRITE – replace the entire todo list with the supplied array.
-	// --------------------------------------------------------------------
-	private async ValueTask<object?> HandleWriteAsync(AIFunctionArguments arguments, CancellationToken _)
+	private async ValueTask<object?> HandleWriteAsync(AIFunctionArguments arguments, CancellationToken ct)
 	{
-		// The "todos" property must be present and be an array.
 		if (!arguments.TryGetValue("todos", out var todosObj) || todosObj is not JsonElement todosElement ||
-			!todosElement.TryGetProperty("todos", out var todosProp) || !todosProp.ValueKind.Equals(JsonValueKind.Array))
+			todosElement.ValueKind != JsonValueKind.Array)
 		{
 			return CreateErrorResponse("Missing or invalid 'todos' array for write action.", "InvalidParameter");
 		}
 
-		// Deserialize the supplied array into a List<TodoItem>.
-		List<TodoItem>? newList;
-		try
+		var incoming = new List<TodoItem>();
+		foreach (var element in todosElement.EnumerateArray())
 		{
-			var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-			newList = JsonSerializer.Deserialize<List<TodoItem>>(todosProp.GetRawText(), options);
-		}
-		catch (JsonException je)
-		{
-			return CreateErrorResponse($"Failed to deserialize 'todos': {je.Message}", "DeserializationError");
+			var (item, error) = ParseTodoItem(element);
+			if (error != null)
+				return CreateErrorResponse(error, "ValidationError");
+			incoming.Add(item!);
 		}
 
-		if (newList == null || newList.Count == 0)
-		{
-			return CreateErrorResponse("'todos' array cannot be empty.", "InvalidParameter");
-		}
-
-		// Validate each item.
-		var validationErrors = ValidateTodoItems(newList);
-		if (validationErrors.Count > 0)
-		{
-			// Return the first error – the caller can adjust the payload.
-			var firstError = validationErrors.First();
-			return CreateErrorResponse(firstError, "ValidationError");
-		}
-
-		// Replace the in‑memory store.
-		lock (_store)
-		{
-			_store.Clear();
-			_store.AddRange(newList);
-		}
-
-		// Echo back the newly stored list (useful for confirmation).
-		var response = new JsonObject
+		var list = await _service.WriteAsync(incoming, _contextId, ct);
+		return new JsonObject
 		{
 			["action"] = WriteAction,
-			["todos"] = ToJsonArray(_store)
+			["todos"] = ToJsonArray(list.Items)
 		};
-
-		return response;
 	}
 
-	// --------------------------------------------------------------------
-	// Helper: validate a collection of TodoItem objects.
-	// Returns a list of human‑readable error messages (empty when valid).
-	// --------------------------------------------------------------------
-	private static List<string> ValidateTodoItems(IEnumerable<TodoItem> items)
+	private static (TodoItem? item, string? error) ParseTodoItem(JsonElement element)
 	{
-		var errors = new List<string>();
+		var id = GetString(element, "id");
+		if (string.IsNullOrWhiteSpace(id))
+			id = Guid.NewGuid().ToString("N").Substring(0, 8);
 
-		foreach (var item in items)
-		{
-			if (string.IsNullOrWhiteSpace(item.Id))
-				errors.Add("Each todo must have a non‑empty 'id'.");
-			if (string.IsNullOrWhiteSpace(item.Content))
-				errors.Add("Each todo must have a non‑empty 'content'.");
-			if (!Enum.IsDefined(typeof(TodoStatus), item.Status))
-				errors.Add($"Invalid 'status' value '{item.Status}'. Allowed: pending, in_progress, completed, cancelled.");
-			if (!Enum.IsDefined(typeof(TodoPriority), item.Priority))
-				errors.Add($"Invalid 'priority' value '{item.Priority}'. Allowed: high, medium, low.");
-		}
+		var content = GetString(element, "content");
+		if (string.IsNullOrWhiteSpace(content))
+			return (null, "Each todo item must have a non-empty 'content'.");
 
-		return errors;
+		var statusRaw = GetString(element, "status") ?? "pending";
+		if (!TryNormalizeStatus(statusRaw, out var status))
+			return (null, $"Unrecognized status '{statusRaw}'. Try: pending, in_progress, completed, or cancelled.");
+
+		var priorityRaw = GetString(element, "priority") ?? "medium";
+		if (!TryNormalizePriority(priorityRaw, out var priority))
+			return (null, $"Unrecognized priority '{priorityRaw}'. Try: high, medium, or low.");
+
+		return (new TodoItem { Id = id, Content = content, Status = status, Priority = priority }, null);
 	}
 
-	// --------------------------------------------------------------------
-	// Helper: convert the current store to a JSON array for the response.
-	// --------------------------------------------------------------------
+	private static string? GetString(JsonElement element, string propertyName)
+	{
+		if (element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String)
+			return prop.GetString();
+		return null;
+	}
+
+	private static bool TryNormalizeStatus(string raw, out TodoStatus status)
+	{
+		status = (raw.Trim().ToLowerInvariant().Replace("-", "_").Replace(" ", "_")) switch
+		{
+			"pending" or "todo" or "not_started" or "open" => TodoStatus.pending,
+			"in_progress" or "active" or "wip" or "doing" or "started" or "in_process" => TodoStatus.in_progress,
+			"completed" or "done" or "finished" or "closed" or "resolved" => TodoStatus.completed,
+			"cancelled" or "canceled" or "skipped" or "dropped" or "abandoned" => TodoStatus.cancelled,
+			_ => (TodoStatus)(-1)
+		};
+		return (int)status >= 0;
+	}
+
+	private static bool TryNormalizePriority(string raw, out TodoPriority priority)
+	{
+		priority = raw.Trim().ToLowerInvariant() switch
+		{
+			"high" or "urgent" or "critical" or "important" or "hi" => TodoPriority.high,
+			"medium" or "med" or "normal" or "moderate" or "mid" or "default" => TodoPriority.medium,
+			"low" or "lo" or "minor" or "trivial" => TodoPriority.low,
+			_ => (TodoPriority)(-1)
+		};
+		return (int)priority >= 0;
+	}
+
 	private static JsonArray ToJsonArray(List<TodoItem> items)
 	{
 		var jsonArray = new JsonArray();
@@ -208,9 +220,6 @@ public class Todo : AIFunction
 		return jsonArray;
 	}
 
-	// --------------------------------------------------------------------
-	// Helper: build a standard error response object.
-	// --------------------------------------------------------------------
 	private static JsonObject CreateErrorResponse(string errorMessage, string errorType = "InvalidParameter")
 	{
 		return new JsonObject
@@ -219,26 +228,5 @@ public class Todo : AIFunction
 			["error"] = errorMessage,
 			["error_type"] = errorType
 		};
-	}
-
-	// --------------------------------------------------------------------
-	// POCOs that map to the JSON structure.
-	// --------------------------------------------------------------------
-	private enum TodoStatus { pending, in_progress, completed, cancelled }
-	private enum TodoPriority { high, medium, low }
-
-	private sealed class TodoItem
-	{
-		[JsonPropertyName("id")]
-		public string Id { get; set; } = default!;
-
-		[JsonPropertyName("content")]
-		public string Content { get; set; } = default!;
-
-		[JsonPropertyName("status")]
-		public TodoStatus Status { get; set; }
-
-		[JsonPropertyName("priority")]
-		public TodoPriority Priority { get; set; }
 	}
 }

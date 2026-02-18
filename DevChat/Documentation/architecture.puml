@@ -1,0 +1,303 @@
+@startuml DevChat MVVM Architecture
+!theme plain
+' scale 1024x1024
+' scale 2048x2048
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classFontSize 12
+skinparam packageFontSize 14
+
+' ──────────────────────────────────────
+'  DRAW GEOMETRY
+' ──────────────────────────────────────
+' skinparam defaultFontColor white
+' skinparam ClassStereotypeFontColor white
+' skinparam InterfaceStereotypeFontColor white
+' skinparam classAttributeIconColor white
+
+' ──────────────────────────────────────
+'  DRAW TEXT
+' ──────────────────────────────────────
+' skinparam ClassBorderColor white
+' skinparam ClassBackgroundColor white
+' skinparam ClassHeaderBackgroundColor white
+' skinparam InterfaceBorderColor white
+' skinparam InterfaceBackgroundColor white
+' skinparam InterfaceHeaderBackgroundColor white
+' skinparam PackageBorderColor white
+' skinparam PackageBackgroundColor white
+' skinparam ArrowColor white
+
+' ──────────────────────────────────────
+'  VIEWS
+' ──────────────────────────────────────
+package "Views" #E8F5E9 {
+    class MainWindow <<Window>> {
+        DataTemplate: ChatViewModel → ChatView
+        DataTemplate: SettingsViewModel → SettingsView
+        --
+        Binds: Conversations
+        Binds: SelectedConversation
+        Binds: CurrentView
+        Binds: IsNavPaneOpen
+    }
+
+    class ChatView <<UserControl>> {
+        Binds: Messages
+        Binds: UserInput
+        Binds: IsBusy
+        Binds: MarkdownContent
+        Binds: PendingContent
+        Binds: IsRawMode
+        --
+        Commands: SendCommand
+        Commands: CancelSendCommand
+        Commands: ToggleRawModeCommand
+    }
+
+    class SettingsView <<UserControl>> {
+        Binds: DatabasePath
+        --
+        Commands: OpenDatabaseFolderCommand
+    }
+}
+
+' ──────────────────────────────────────
+'  VIEW MODELS
+' ──────────────────────────────────────
+package "ViewModels" #E3F2FD {
+    class MainViewModel <<ObservableObject>> {
+        + Conversations : ObservableCollection<ConversationViewModel>
+        + SelectedConversation : ConversationViewModel?
+        + CurrentView : object?
+        + IsNavPaneOpen : bool
+        + Settings : SettingsViewModel
+        --
+        + NewChatCommand
+        + DeleteConversationCommand
+        + ToggleNavPaneCommand
+        + ShowSettingsCommand
+        + LoadConversationsAsync()
+    }
+
+    class ChatViewModel <<ObservableObject>> {
+        + Messages : ObservableCollection<ChatMessageViewModel>
+        + Conversation : ConversationViewModel
+        + UserInput : string
+        + IsBusy : bool
+        --
+        + SendCommand
+        + CancelSendCommand
+        + LoadMessagesAsync()
+    }
+
+    class ConversationViewModel <<ObservableObject>> {
+        + Id : Guid
+        + Title : string
+        + CreatedAt : DateTime
+        --
+        + {static} CreateNewAsync() : ConversationViewModel
+    }
+
+    class ChatMessageViewModel <<ObservableObject>> {
+        + Role : string
+        + IsUser : bool
+        + RenderedContent : string
+        + PendingContent : string
+        + Content : string
+        + MarkdownContent : string
+        + IsRawMode : bool
+        --
+        + ToggleRawModeCommand
+        + {static} CreateUserAsync() : ChatMessageViewModel
+        + {static} CreateAssistantPlaceholder() : ChatMessageViewModel
+        + Flush()
+        + PersistAsync()
+    }
+
+    class SettingsViewModel <<ObservableObject>> {
+        + DatabasePath : string
+        --
+        + OpenDatabaseFolderCommand
+    }
+}
+
+' ──────────────────────────────────────
+'  MODELS
+' ──────────────────────────────────────
+package "Models" #FFF3E0 {
+    class ConversationEntity {
+        + Id : Guid
+        + Title : string
+        + CreatedAt : DateTime
+        + Messages : List<ChatMessageEntity>
+    }
+
+    class ChatMessageEntity {
+        + Id : int
+        + ConversationId : Guid
+        + Role : string
+        + Content : string
+        + CreatedAt : DateTime
+    }
+}
+
+' ──────────────────────────────────────
+'  TODO MODELS  (Cooney.AI)
+' ──────────────────────────────────────
+package "Cooney.AI Models" #FFF8E1 {
+    class TodoList {
+        + Id : Guid
+        + Name : string
+        + ContextId : Guid?
+        + CreatedAt : DateTime
+        + Items : List<TodoItem>
+    }
+
+    class TodoItem {
+        + Id : string
+        + TodoListId : Guid
+        + Content : string
+        + Status : TodoStatus
+        + Priority : TodoPriority
+    }
+
+    enum TodoStatus {
+        pending
+        in_progress
+        completed
+        cancelled
+    }
+
+    enum TodoPriority {
+        high
+        medium
+        low
+    }
+}
+
+' ──────────────────────────────────────
+'  DATA ACCESS
+' ──────────────────────────────────────
+package "Data" #F3E5F5 {
+    class ChatDbContext <<DbContext>> {
+        + Conversations : DbSet<ConversationEntity>
+        + ChatMessages : DbSet<ChatMessageEntity>
+        --
+        + DatabasePath : string
+    }
+
+    class TodoDbContext <<DbContext>> {
+        + TodoLists : DbSet<TodoList>
+        + TodoItems : DbSet<TodoItem>
+    }
+}
+
+' ──────────────────────────────────────
+'  SERVICES
+' ──────────────────────────────────────
+package "Services" #FFEBEE {
+    interface IChatService {
+        + GetStreamingResponseAsync(messages, extraTools?, ct) : IAsyncEnumerable<string>
+        + TokenCount : long
+    }
+
+    class ChatService {
+        Uses OpenAI via Microsoft.Extensions.AI
+    }
+
+    class StubChatService {
+        Returns hardcoded test response
+    }
+
+    interface ITodoService {
+        + ReadAsync(contextId?, ct) : Task<TodoList>
+        + WriteAsync(items, contextId?, ct) : Task<TodoList>
+    }
+
+    class EfTodoService {
+        Uses TodoDbContext via IDbContextFactory
+    }
+
+    class StubTodoService {
+        In-memory implementation
+    }
+
+    class Todo <<AITool>> {
+        + ContextId : Guid?
+        --
+        Actions: read, write
+    }
+}
+
+' ──────────────────────────────────────
+'  VIEW → VIEW MODEL  (DataContext)
+' ──────────────────────────────────────
+MainWindow     -[#2E7D32,bold]-->  MainViewModel      : DataContext
+MainWindow     .[#2E7D32].>  ChatView           : DataTemplate\nroutes to
+MainWindow     .[#2E7D32].>  SettingsView       : DataTemplate\nroutes to
+ChatView       -[#2E7D32,bold]-->  ChatViewModel      : implicit\nDataContext
+SettingsView   -[#2E7D32,bold]-->  SettingsViewModel  : implicit\nDataContext
+
+' ──────────────────────────────────────
+'  VIEW MODEL → VIEW MODEL
+' ──────────────────────────────────────
+MainViewModel  *-[#1565C0]--> "0..*" ConversationViewModel : owns
+MainViewModel  o-[#1565C0]-->  ChatViewModel          : caches per\nconversation
+MainViewModel  --[#1565C0]-->  SettingsViewModel      : holds ref
+
+ChatViewModel  --[#1565C0]-->  ConversationViewModel  : belongs to
+ChatViewModel  *-[#1565C0]--> "0..*" ChatMessageViewModel : owns
+
+' ──────────────────────────────────────
+'  VIEW MODEL → MODEL  (wraps)
+' ──────────────────────────────────────
+ConversationViewModel  -[#E65100,bold]-->  ConversationEntity   : wraps
+ChatMessageViewModel   -[#E65100,bold]-->  ChatMessageEntity    : wraps
+
+' ──────────────────────────────────────
+'  MODEL → MODEL
+' ──────────────────────────────────────
+ConversationEntity  *-[#BF360C]--> "0..*" ChatMessageEntity : has many
+TodoList            *-[#BF360C]--> "0..*" TodoItem          : has many
+TodoItem            ..>  TodoStatus    : uses
+TodoItem            ..>  TodoPriority  : uses
+
+' ──────────────────────────────────────
+'  DATA ACCESS
+' ──────────────────────────────────────
+ChatDbContext  -[#6A1B9A]-->  ConversationEntity  : DbSet
+ChatDbContext  -[#6A1B9A]-->  ChatMessageEntity   : DbSet
+TodoDbContext  -[#6A1B9A]-->  TodoList            : DbSet
+TodoDbContext  -[#6A1B9A]-->  TodoItem            : DbSet
+
+MainViewModel  -[#6A1B9A,dashed]-->  ChatDbContext : IDbContextFactory
+ChatViewModel  -[#6A1B9A,dashed]-->  ChatDbContext : IDbContextFactory
+EfTodoService  -[#6A1B9A,dashed]-->  TodoDbContext : IDbContextFactory
+
+' ──────────────────────────────────────
+'  SERVICES
+' ──────────────────────────────────────
+ChatService     ..|>  IChatService
+StubChatService ..|>  IChatService
+EfTodoService   ..|>  ITodoService
+StubTodoService ..|>  ITodoService
+
+ChatViewModel  -[#C62828,dashed]-->  IChatService : streams\nresponses
+ChatViewModel  -[#C62828,dashed]-->  ITodoService : injects into\nTodo tool
+MainViewModel  -[#C62828,dashed]-->  ITodoService : injects into\nChatViewModel
+
+ChatViewModel  o-[#C62828]-->        Todo         : creates per\nconversation
+Todo           -[#C62828,dashed]-->  ITodoService : reads/writes\ntodos
+
+legend right
+  |= Color |= Relationship |
+  | <#2E7D32> | View → ViewModel (DataContext) |
+  | <#1565C0> | ViewModel → ViewModel |
+  | <#E65100> | ViewModel → Model (wraps) |
+  | <#BF360C> | Model → Model (EF navigation) |
+  | <#6A1B9A> | Data Access |
+  | <#C62828> | Service dependency |
+end legend
+
+@enduml

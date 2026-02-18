@@ -1,40 +1,20 @@
-namespace Cooney.AI.Services;
-
-using System.Collections.Generic;
-using System.Threading;
 using Microsoft.Extensions.AI;
+using System.Collections.Generic;
+
+namespace Cooney.AI.Services;
 
 public interface IChatService
 {
 	/// <summary>
-	/// Gets the current chat history for this session
+	/// Sends a list of messages and returns streaming responses
 	/// </summary>
-	IReadOnlyList<ChatMessage> ChatHistory { get; }
-
-	/// <summary>
-	/// Sends a message and returns streaming responses
-	/// </summary>
-	IAsyncEnumerable<ChatResponseUpdate> SendMessageAsync(
-		string userMessage,
+	IAsyncEnumerable<string> GetStreamingResponseAsync(
+		IReadOnlyList<ChatMessage> chatMessages,
+		IReadOnlyList<AITool>? extraTools = null,
 		CancellationToken cancellationToken = default);
-
-	/// <summary>
-	/// Clears the chat history for this session
-	/// </summary>
-	void ClearHistory();
-
-	/// <summary>
-	/// Adds a system message to the chat history
-	/// </summary>
-	void AddSystemMessage(string message);
-
-	/// <summary>
-	/// Gets the maximum number of tokens that can be processed in a single context.
-	/// </summary>
-	int ContextLength { get; }
 
 	/// <summary>
 	/// Gets the total number of tokens used in the current conversation.
 	/// </summary>
-	int TotalTokenCount { get; }
+	long TokenCount { get; }
 }

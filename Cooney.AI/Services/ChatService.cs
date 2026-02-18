@@ -1,12 +1,10 @@
 using Microsoft.Extensions.AI;
-using System.Linq;
-using System.Collections.Generic;
 using Microsoft.Extensions.Options;
 using OpenAI;
 using System.ClientModel;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using Cooney.AI.Tools;
 
 namespace Cooney.AI.Services;
 
@@ -14,15 +12,12 @@ public class ChatService : IChatService
 {
 	private readonly IChatClient _chatClient;
 	private readonly ChatOptions _chatOptions;
-	private readonly List<ChatMessage> _chatHistory;
-	private readonly int _contextLength;
-	private int _totalTokenCount = 0;
+	private readonly List<AITool>? _defaultTools;
+	private long _tokenCount = 0;
 
-	public int ContextLength => _contextLength;
-	public int TotalTokenCount => _totalTokenCount;
-	public IReadOnlyList<ChatMessage> ChatHistory => _chatHistory.AsReadOnly();
+	public long TokenCount => _tokenCount;
 
-	public ChatService(IOptions<AIServiceOptions> options)
+	public ChatService(IOptions<ChatServiceOptions> options, List<AITool> tools)
 	{
 		var config = options.Value;
 
@@ -39,73 +34,58 @@ public class ChatService : IChatService
 			.UseFunctionInvocation()
 			.Build();
 
+		_defaultTools = tools?.Count > 0 ? tools : null;
+
 		_chatOptions = new ChatOptions
 		{
 			AllowBackgroundResponses = config.ChatOptions.AllowBackgroundResponses,
 			AllowMultipleToolCalls = config.ChatOptions.AllowMultipleToolCalls,
-			MaxOutputTokens = config.ChatOptions.MaxOutputTokens,
-			Temperature = config.ChatOptions.Temperature,
-			Tools =
-			[
-				new Calculator(),
-				new WordCount(),
-			]
+			Tools = tools
 		};
-
-		_contextLength = config.ChatOptions.ContextLength;
-
-		_chatHistory =
-		[
-			new(ChatRole.System, config.SystemPrompt)
-		];
 	}
 
-	public async IAsyncEnumerable<ChatResponseUpdate> SendMessageAsync(
-		string userMessage,
+	public async IAsyncEnumerable<string> GetStreamingResponseAsync(
+		IReadOnlyList<ChatMessage> chatMessages,
+		IReadOnlyList<AITool>? extraTools = null,
 		[EnumeratorCancellation] CancellationToken cancellationToken = default)
 	{
-		var userChatMessage = new ChatMessage(ChatRole.User, userMessage);
-		_chatHistory.Add(userChatMessage);
+		long previousTokenCount = _tokenCount;
 
-		var assistantResponse = new StringBuilder();
+		var options = BuildOptions(extraTools);
 
 		await foreach (var update in _chatClient.GetStreamingResponseAsync(
-			_chatHistory,
-			_chatOptions,
+			chatMessages,
+			options,
 			cancellationToken: cancellationToken))
 		{
-			if (update.Text != null)
-			{
-				assistantResponse.Append(update.Text);
-			}
-
 			if (update.Contents.OfType<UsageContent>().FirstOrDefault() is UsageContent usage)
 			{
-				_totalTokenCount = (int)(usage.Details?.TotalTokenCount ?? _totalTokenCount);
+				if (usage.Details?.TotalTokenCount is long count)
+				{
+					_tokenCount = previousTokenCount + count;
+				}
 			}
 
-			yield return update;
-		}
-
-		if (assistantResponse.Length > 0)
-		{
-			_chatHistory.Add(new ChatMessage(ChatRole.Assistant, assistantResponse.ToString()));
+			if (!string.IsNullOrEmpty(update.Text))
+			{
+				yield return update.Text;
+			}
 		}
 	}
 
-	public void ClearHistory()
+	private ChatOptions BuildOptions(IReadOnlyList<AITool>? extraTools)
 	{
-		var systemMessage = _chatHistory.FirstOrDefault(m => m.Role == ChatRole.System);
-		_chatHistory.Clear();
-		if (systemMessage != null)
-		{
-			_chatHistory.Add(systemMessage);
-		}
-		_totalTokenCount = 0;
-	}
+		if (extraTools is not { Count: > 0 })
+			return _chatOptions;
 
-	public void AddSystemMessage(string message)
-	{
-		_chatHistory.Add(new ChatMessage(ChatRole.System, message));
+		var merged = new List<AITool>(_defaultTools ?? []);
+		merged.AddRange(extraTools);
+
+		return new ChatOptions
+		{
+			AllowBackgroundResponses = _chatOptions.AllowBackgroundResponses,
+			AllowMultipleToolCalls = _chatOptions.AllowMultipleToolCalls,
+			Tools = merged
+		};
 	}
 }

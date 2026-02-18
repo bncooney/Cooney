@@ -1,0 +1,145 @@
+<UserControl x:Class="DevChat.Views.ChatView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:converters="clr-namespace:DevChat.Converters"
+             xmlns:vm="clr-namespace:DevChat.ViewModels"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <converters:MarkdownToFlowDocumentConverter x:Key="MarkdownConverter"/>
+        <converters:StringToVisibilityConverter x:Key="EmptyToCollapsed"/>
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+        <converters:BooleanToStringConverter x:Key="RawModeButtonText"
+                                             TrueValue="Rendered" FalseValue="Raw"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <!-- Input bar at bottom -->
+        <Border DockPanel.Dock="Bottom"
+                Padding="8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0"
+                         AutomationProperties.AutomationId="MessageInput"
+                         Text="{Binding UserInput, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         MaxHeight="120"
+                         Padding="8,6"
+                         FontSize="14"
+                         PreviewKeyDown="InputBox_PreviewKeyDown"
+                         x:Name="InputBox"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="4,0,0,0"
+                            VerticalAlignment="Bottom">
+                    <Button Content="Send"
+                            Command="{Binding SendCommand}"
+                            Padding="12,6"/>
+                    <Button Content="Cancel"
+                            Command="{Binding CancelSendCommand}"
+                            Padding="12,6"
+                            Margin="4,0,0,0"
+                            Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Chat messages -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      Padding="12"
+                      x:Name="MessagesScrollViewer">
+            <ItemsControl ItemsSource="{Binding Messages}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:ChatMessageViewModel}">
+                        <Border Margin="0,0,0,8"
+                                Padding="12,8"
+                                CornerRadius="6"
+                                x:Name="BubbleBorder">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsUser}" Value="True">
+                                            <Setter Property="Background"
+                                                    Value="{DynamicResource {x:Static SystemColors.AccentColorBrushKey}}"/>
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="MaxWidth" Value="600"/>
+                                            <Setter Property="TextElement.Foreground" Value="White"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsUser}" Value="False">
+                                            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Grid>
+                                <!-- Rendered mode (FlowDocument) -->
+                                <StackPanel Visibility="{Binding IsRawMode, Converter={StaticResource InverseBoolToVis}}">
+                                    <FlowDocumentScrollViewer Document="{Binding MarkdownContent, Converter={StaticResource MarkdownConverter}}"
+                                                              VerticalScrollBarVisibility="Disabled"
+                                                              IsToolBarVisible="False"
+                                                              Focusable="False"
+                                                              PreviewMouseWheel="FlowDocumentScrollViewer_PreviewMouseWheel"/>
+                                    <TextBlock Text="{Binding PendingContent}"
+                                               TextWrapping="Wrap"
+                                               FontFamily="Segoe UI"
+                                               FontSize="14"
+                                               Visibility="{Binding PendingContent, Converter={StaticResource EmptyToCollapsed}}"/>
+                                </StackPanel>
+
+                                <!-- Raw mode (selectable text) -->
+                                <TextBox AutomationProperties.AutomationId="RawContent"
+                                         Text="{Binding Content, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         BorderThickness="0"
+                                         Background="Transparent"
+                                         FontFamily="Consolas"
+                                         FontSize="13"
+                                         Padding="0"
+                                         Visibility="{Binding IsRawMode, Converter={StaticResource BoolToVis}}"/>
+
+                                <!-- Toggle button (floats over content, no layout impact) -->
+                                <Button AutomationProperties.AutomationId="ToggleRawMode"
+                                        Command="{Binding ToggleRawModeCommand}"
+                                        Content="{Binding IsRawMode, Converter={StaticResource RawModeButtonText}}"
+                                        VerticalAlignment="Bottom"
+                                        HorizontalAlignment="Right"
+                                        Padding="6,2"
+                                        FontSize="11"
+                                        Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground"
+                                                    Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Opacity" Value="0"/>
+                                            <Setter Property="IsHitTestVisible" Value="False"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMouseOver, ElementName=BubbleBorder}"
+                                                             Value="True">
+                                                    <Setter Property="Opacity" Value="1"/>
+                                                    <Setter Property="IsHitTestVisible" Value="True"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsRawMode}" Value="True">
+                                                    <Setter Property="Opacity" Value="1"/>
+                                                    <Setter Property="IsHitTestVisible" Value="True"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>
