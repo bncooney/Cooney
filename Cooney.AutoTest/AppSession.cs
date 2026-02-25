@@ -3,23 +3,44 @@ using System.Net.Http;
 using OpenQA.Selenium.Appium;
 using OpenQA.Selenium.Appium.Windows;
 
-namespace DevChat.Test;
+namespace Cooney.AutoTest;
 
 /// <summary>
 /// Manages WinAppDriver and the application session for UI tests.
+/// Call <see cref="Configure"/> before any other method.
 /// WinAppDriver must be installed: https://github.com/microsoft/WinAppDriver/releases
 /// Developer Mode must be enabled in Windows Settings.
 /// </summary>
-public static class DevChatSession
+public static class AppSession
 {
 	private const string WinAppDriverUrl = "http://127.0.0.1:4723";
 	private const string WinAppDriverPath =
 		@"C:\Program Files (x86)\Windows Application Driver\WinAppDriver.exe";
 
 	private static Process? _winAppDriverProcess;
+	private static string _appName = null!;
+	private static string _projectFolder = null!;
 
 	public static WindowsDriver<WindowsElement> Driver { get; private set; } = null!;
 	private static WindowsDriver<WindowsElement>? _desktopSession;
+
+	/// <summary>
+	/// Configures the session for a specific application.
+	/// Must be called before <see cref="Setup"/> or <see cref="StartWinAppDriver"/>.
+	/// </summary>
+	/// <param name="appName">
+	/// Application name used for the window title, process name, and exe filename
+	/// (e.g. "DevChat" or "DevMap").
+	/// </param>
+	/// <param name="projectFolder">
+	/// The subfolder under the solution directory containing the build output
+	/// (e.g. "DevChat" or "DevMap").
+	/// </param>
+	public static void Configure(string appName, string projectFolder)
+	{
+		_appName = appName;
+		_projectFolder = projectFolder;
+	}
 
 	public static void Setup(string? appArguments = null)
 	{
@@ -45,14 +66,14 @@ public static class DevChatSession
 	}
 
 	/// <summary>
-	/// Re-attaches the Driver to the DevChat window after a <c>WindowStyle</c> change.
+	/// Re-attaches the Driver to the application window after a <c>WindowStyle</c> change.
 	/// WPF recreates the underlying Win32 window (new HWND) when the style changes,
 	/// which invalidates the existing session. We use the Desktop session to find the
 	/// window by title and create a fresh session scoped to the new handle.
 	/// </summary>
 	public static void ReattachToAppWindow()
 	{
-		var appWindow = _desktopSession!.FindElementByName("DevChat");
+		var appWindow = _desktopSession!.FindElementByName(_appName);
 		var nativeHandle = appWindow.GetAttribute("NativeWindowHandle");
 		var hexHandle = int.Parse(nativeHandle).ToString("x");
 
@@ -80,7 +101,7 @@ public static class DevChatSession
 		_desktopSession = null;
 
 		// Ensure the app is closed even if the session quit didn't terminate it.
-		foreach (var proc in Process.GetProcessesByName("DevChat"))
+		foreach (var proc in Process.GetProcessesByName(_appName))
 		{
 			try
 			{ proc.Kill(); proc.Dispose(); }
@@ -134,14 +155,15 @@ public static class DevChatSession
 	private static string FindAppExecutable()
 	{
 		var solutionDir = FindSolutionDirectory();
+		var exeName = $"{_appName}.exe";
 
 		// Try common build output paths in order of likelihood.
 		string[] candidates =
 		[
-			Path.Combine(solutionDir, "DevChat", "bin", "Debug", "net10.0-windows", "DevChat.exe"),
-			Path.Combine(solutionDir, "DevChat", "bin", "x64", "Debug", "net10.0-windows", "DevChat.exe"),
-			Path.Combine(solutionDir, "DevChat", "bin", "Release", "net10.0-windows", "DevChat.exe"),
-			Path.Combine(solutionDir, "DevChat", "bin", "x64", "Release", "net10.0-windows", "DevChat.exe"),
+			Path.Combine(solutionDir, _projectFolder, "bin", "Debug", "net10.0-windows", exeName),
+			Path.Combine(solutionDir, _projectFolder, "bin", "x64", "Debug", "net10.0-windows", exeName),
+			Path.Combine(solutionDir, _projectFolder, "bin", "Release", "net10.0-windows", exeName),
+			Path.Combine(solutionDir, _projectFolder, "bin", "x64", "Release", "net10.0-windows", exeName),
 		];
 
 		foreach (var candidate in candidates)
@@ -151,7 +173,7 @@ public static class DevChatSession
 		}
 
 		throw new FileNotFoundException(
-			"DevChat.exe not found. Build the DevChat project first.\n" +
+			$"{exeName} not found. Build the {_projectFolder} project first.\n" +
 			$"Searched in:\n  {string.Join("\n  ", candidates)}");
 	}
 

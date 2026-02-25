@@ -8,18 +8,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Appium.WebDriver" Version="4.4.5" />
-    <PackageReference Include="MSTest" Version="4.1.0" />
+    <PackageReference Include="MSTest" Version="4.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\DevChat\DevChat.csproj"
-                      ReferenceOutputAssembly="false"
-                      SkipGetTargetFrameworkProperties="true" />
-  </ItemGroup>
-
+	<ItemGroup>
+		<ProjectReference Include="..\Cooney.AutoTest\Cooney.AutoTest.csproj" />
+		<ProjectReference Include="..\DevMap\DevMap.csproj"
+							ReferenceOutputAssembly="false"
+							SkipGetTargetFrameworkProperties="true" />
+	</ItemGroup>
 </Project>

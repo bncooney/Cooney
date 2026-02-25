@@ -1,4 +1,6 @@
-namespace DevChat.Test;
+using Cooney.AutoTest;
+
+namespace DevChat.AutoTest;
 
 /// <summary>
 /// Manages WinAppDriver lifetime once for the entire test assembly,
@@ -9,8 +11,12 @@ namespace DevChat.Test;
 public static class GlobalSetup
 {
 	[AssemblyInitialize]
-	public static void AssemblyInit(TestContext _) => DevChatSession.StartWinAppDriver();
+	public static void AssemblyInit(TestContext _)
+	{
+		AppSession.Configure("DevChat", "DevChat");
+		AppSession.StartWinAppDriver();
+	}
 
 	[AssemblyCleanup]
-	public static void AssemblyCleanup() => DevChatSession.StopWinAppDriver();
+	public static void AssemblyCleanup() => AppSession.StopWinAppDriver();
 }

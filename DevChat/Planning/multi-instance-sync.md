@@ -181,7 +181,7 @@ Delete entries older than 24 hours on each startup to keep the table small.
 ## Verification
 
 1. **Build** — `dotnet build` passes with 0 errors
-2. **Existing tests** — `dotnet test` passes (DevChat.Test UI tests still green)
+2. **Existing tests** — `dotnet test` passes (DevChat.AutoTest UI tests still green)
 3. **Manual two-instance test:**
    - Launch instance A, create a conversation, send a message
    - Launch instance B — it should show the conversation

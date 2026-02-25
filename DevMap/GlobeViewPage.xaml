@@ -1,0 +1,12 @@
+<Page x:Class="DevMap.GlobeViewPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mgc="clr-namespace:DevMap.MonoGameControls"
+      xmlns:local="clr-namespace:DevMap">
+
+    <mgc:MonoGameContentControl x:Name="GameControl">
+        <mgc:MonoGameContentControl.DataContext>
+            <local:GlobeViewModel />
+        </mgc:MonoGameContentControl.DataContext>
+    </mgc:MonoGameContentControl>
+</Page>

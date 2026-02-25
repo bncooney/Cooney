@@ -23,7 +23,7 @@ public partial class App : Application
 		var isTestMode = e.Args.Contains("--test");
 
 		var dbFolder = isTestMode
-			? Path.Combine(Path.GetTempPath(), "DevChat.Test", Guid.NewGuid().ToString())
+			? Path.Combine(Path.GetTempPath(), "DevChat.AutoTest", Guid.NewGuid().ToString())
 			: ChatDbContext.DatabaseFolder;
 		var dbPath = Path.Combine(dbFolder, "devchat.db");
 

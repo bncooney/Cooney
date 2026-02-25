@@ -7,11 +7,12 @@
   <Project Path="Cooney.AI.Test/Cooney.AI.Test.csproj" />
   <Project Path="Cooney.AI/Cooney.AI.csproj" />
   <Project Path="Cooney.Common/Cooney.Common.csproj" />
-  <Project Path="Cooney.Geospatial.Test/Cooney.Geospatial.Test.csproj" Id="387980f8-91d0-4c91-a271-b9432ce945bc" />
+  <Project Path="Cooney.Geospatial.Test/Cooney.Geospatial.Test.csproj"/>
   <Project Path="Cooney.Geospatial/Cooney.Geospatial.csproj" />
-  <Project Path="DevChat.Test/DevChat.Test.csproj" Id="ce1bb9a2-c1f6-4446-b9d1-234a23f503a1" />
-  <Project Path="DevChat.Test.Unit/DevChat.Test.Unit.csproj" />
-  <Project Path="DevChat/DevChat.csproj">
-    <Platform Solution="*|x64" Project="x64" />
-  </Project>
+  <Project Path="DevChat.AutoTest/DevChat.AutoTest.csproj"/>
+  <Project Path="DevChat.AutoTest.Unit/DevChat.AutoTest.Unit.csproj" />
+  <Project Path="DevChat/DevChat.csproj"/>
+  <Project Path="Cooney.AutoTest/Cooney.AutoTest.csproj" />
+  <Project Path="DevMap.AutoTest/DevMap.AutoTest.csproj" />
+  <Project Path="DevMap/DevMap.csproj" />
 </Solution>

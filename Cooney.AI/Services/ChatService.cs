@@ -66,6 +66,11 @@ public class ChatService : IChatService
 				}
 			}
 
+			if (update.Contents.OfType<TextReasoningContent>().FirstOrDefault() is TextReasoningContent reasoningContent)
+			{
+
+			}
+
 			if (!string.IsNullOrEmpty(update.Text))
 			{
 				yield return update.Text;

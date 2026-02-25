@@ -1,20 +1,21 @@
+using Cooney.AutoTest;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Appium.Windows;
 using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
 
-namespace DevChat.Test;
+namespace DevChat.AutoTest;
 
 [TestClass]
 public class MainWindowTests
 {
-	private static WindowsDriver<WindowsElement> Driver => DevChatSession.Driver;
+	private static WindowsDriver<WindowsElement> Driver => AppSession.Driver;
 
 	[ClassInitialize]
-	public static void ClassInit(TestContext _) => DevChatSession.Setup("--test");
+	public static void ClassInit(TestContext _) => AppSession.Setup("--test");
 
 	[ClassCleanup]
-	public static void ClassCleanup() => DevChatSession.TearDown();
+	public static void ClassCleanup() => AppSession.TearDown();
 
 	[TestInitialize]
 	public void ResetAppState()

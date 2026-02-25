@@ -5,7 +5,7 @@ using DevChat.ViewModels;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
-namespace DevChat.Test.Unit;
+namespace DevChat.AutoTest.Unit;
 
 [TestClass]
 public class ChatViewModelPersistenceTests
