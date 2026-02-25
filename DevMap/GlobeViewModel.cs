@@ -25,12 +25,6 @@ public class GlobeViewModel : MonoGameViewModel
 	private bool _isFlat;
 	private const float FlatTransitionDistance = 1.8f; // Camera distance at which we switch to flat map
 
-	// Cross-fade transition
-	private float _fadeProgress = 1f; // 1 = fully in current mode
-	private bool _isFading;
-	private bool _fadingToFlat;
-	private const float FadeDuration = 0.3f;
-
 	// Smooth navigation animation state
 	private bool _isAnimating;
 	private float _animStartYaw, _animStartPitch;
@@ -126,17 +120,6 @@ public class GlobeViewModel : MonoGameViewModel
 		if (_isAnimating)
 			UpdateAnimation(gameTime);
 
-		// Update cross-fade
-		if (_isFading)
-		{
-			_fadeProgress += (float)gameTime.ElapsedGameTime.TotalSeconds / FadeDuration;
-			if (_fadeProgress >= 1f)
-			{
-				_fadeProgress = 1f;
-				_isFading = false;
-			}
-		}
-
 		var viewport = GraphicsDevice.Viewport;
 		if (viewport.Width != _lastViewport.Width || viewport.Height != _lastViewport.Height)
 		{
@@ -144,6 +127,8 @@ public class GlobeViewModel : MonoGameViewModel
 			_mapCamera.ViewportHeight = viewport.Height;
 		}
 		_lastViewport = viewport;
+
+		UpdateCameraPosition();
 
 		// In flat mode, keep arcball distance in sync with 2D zoom so transition check works
 		if (_isFlat)
@@ -154,7 +139,7 @@ public class GlobeViewModel : MonoGameViewModel
 
 		// Check for mode transition based on camera distance (screen-size independent)
 		bool shouldBeFlat = _camera.Distance <= FlatTransitionDistance;
-		if (shouldBeFlat != _isFlat && !_isFading)
+		if (shouldBeFlat != _isFlat)
 		{
 			if (shouldBeFlat)
 				TransitionToFlat();
@@ -163,12 +148,12 @@ public class GlobeViewModel : MonoGameViewModel
 		}
 
 		// Update appropriate systems
-		if (_isFlat || (_isFading && _fadingToFlat))
+		if (_isFlat)
 		{
 			_tileManager.UpdateFlat(_mapCamera);
 		}
 
-		if (!_isFlat || (_isFading && !_fadingToFlat))
+		if (!_isFlat)
 		{
 			_camera.UpdateMatrices(_lastViewport);
 			_tileManager.Update(_camera, _lastViewport);
@@ -195,9 +180,6 @@ public class GlobeViewModel : MonoGameViewModel
 			_camera.Distance, _camera.FieldOfView, _lastViewport.Height);
 
 		_isFlat = true;
-		_isFading = true;
-		_fadingToFlat = true;
-		_fadeProgress = 0f;
 	}
 
 	private void TransitionToGlobe()
@@ -209,31 +191,13 @@ public class GlobeViewModel : MonoGameViewModel
 		_camera.Distance = FlatTransitionDistance + 0.01f;
 
 		_isFlat = false;
-		_isFading = true;
-		_fadingToFlat = false;
-		_fadeProgress = 0f;
 	}
 
 	public override void Draw(GameTime gameTime)
 	{
 		GraphicsDevice.Clear(Color.Black);
 
-		if (_isFading)
-		{
-			// During cross-fade, draw both modes
-			// Draw the outgoing mode first, then incoming on top
-			if (_fadingToFlat)
-			{
-				_globeRenderer.Draw(_camera, _tileManager.AtlasTexture);
-				_flatMapRenderer.Draw(_mapCamera, _tileManager.VirtualAtlas);
-			}
-			else
-			{
-				_flatMapRenderer.Draw(_mapCamera, _tileManager.VirtualAtlas);
-				_globeRenderer.Draw(_camera, _tileManager.AtlasTexture);
-			}
-		}
-		else if (_isFlat)
+		if (_isFlat)
 		{
 			_flatMapRenderer.Draw(_mapCamera, _tileManager.VirtualAtlas);
 		}
