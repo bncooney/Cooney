@@ -39,6 +39,10 @@ public class GlobeViewModel : MonoGameViewModel
 	private double _animTargetLat, _animTargetLon;
 	private float _animElapsed, _animDuration;
 
+	// Cached raw values to avoid reformatting every frame
+	private double _lastLat = double.NaN, _lastLon = double.NaN, _lastZoom = double.NaN;
+	private double _lastClickLat = double.NaN, _lastClickLon = double.NaN;
+
 	private string _clickCoordinates = "";
 	public string ClickCoordinates
 	{
@@ -133,10 +137,13 @@ public class GlobeViewModel : MonoGameViewModel
 			}
 		}
 
-		_lastViewport = GraphicsDevice.Viewport;
-
-		// Update camera position display
-		UpdateCameraPosition();
+		var viewport = GraphicsDevice.Viewport;
+		if (viewport.Width != _lastViewport.Width || viewport.Height != _lastViewport.Height)
+		{
+			_mapCamera.ViewportWidth = viewport.Width;
+			_mapCamera.ViewportHeight = viewport.Height;
+		}
+		_lastViewport = viewport;
 
 		// In flat mode, keep arcball distance in sync with 2D zoom so transition check works
 		if (_isFlat)
@@ -158,8 +165,6 @@ public class GlobeViewModel : MonoGameViewModel
 		// Update appropriate systems
 		if (_isFlat || (_isFading && _fadingToFlat))
 		{
-			_mapCamera.ViewportWidth = _lastViewport.Width;
-			_mapCamera.ViewportHeight = _lastViewport.Height;
 			_tileManager.UpdateFlat(_mapCamera);
 		}
 
@@ -269,7 +274,7 @@ public class GlobeViewModel : MonoGameViewModel
 	private void TryPickFlat(Vector2 screenPos)
 	{
 		var (lat, lon) = _mapCamera.ScreenToGeo(screenPos);
-		ClickCoordinates = CoordinateFormat.ToDegreesString(lat, lon);
+		SetClickCoordinates(lat, lon);
 	}
 
 	private void TryPickGlobe(Vector2 screenPos)
@@ -297,7 +302,17 @@ public class GlobeViewModel : MonoGameViewModel
 		if (lonDeg < -180)
 			lonDeg += 360;
 
-		ClickCoordinates = CoordinateFormat.ToDegreesString(latDeg, lonDeg);
+		SetClickCoordinates(latDeg, lonDeg);
+	}
+
+	private void SetClickCoordinates(double lat, double lon)
+	{
+		if (lat != _lastClickLat || lon != _lastClickLon)
+		{
+			_lastClickLat = lat;
+			_lastClickLon = lon;
+			ClickCoordinates = CoordinateFormat.ToDegreesString(lat, lon);
+		}
 	}
 
 	public override void OnMouseMove(MouseStateArgs mouseState)
@@ -385,8 +400,19 @@ public class GlobeViewModel : MonoGameViewModel
 				lon += 360;
 		}
 
-		CameraPosition = CoordinateFormat.ToDegreesString(lat, lon);
-		ZoomLevel = FormattableString.Invariant($"{GetCurrentZoom():F1}");
+		if (lat != _lastLat || lon != _lastLon)
+		{
+			_lastLat = lat;
+			_lastLon = lon;
+			CameraPosition = CoordinateFormat.ToDegreesString(lat, lon);
+		}
+
+		double currentZoom = GetCurrentZoom();
+		if (currentZoom != _lastZoom)
+		{
+			_lastZoom = currentZoom;
+			ZoomLevel = FormattableString.Invariant($"{currentZoom:F1}");
+		}
 	}
 
 	private void UpdateAnimation(GameTime gameTime)

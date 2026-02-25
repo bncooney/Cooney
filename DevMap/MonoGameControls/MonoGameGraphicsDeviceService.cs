@@ -49,7 +49,7 @@ public class MonoGameGraphicsDeviceService : IGraphicsDeviceService, IDisposable
 			BackBufferFormat = SurfaceFormat.Color,
 			DepthStencilFormat = DepthFormat.Depth24,
 			DeviceWindowHandle = windowHandle,
-			PresentationInterval = Microsoft.Xna.Framework.Graphics.PresentInterval.Immediate,
+			PresentationInterval = Microsoft.Xna.Framework.Graphics.PresentInterval.One,
 			IsFullScreen = false
 		};
 

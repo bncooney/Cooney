@@ -25,6 +25,7 @@ public class TileManager(GraphicsDevice device) : IDisposable
 	private bool _workersStarted;
 
 	private int _currentZoom = -1;
+	private int _lastFlatCameraVersion = -1;
 
 	private const int MaxBlitsPerFrame = 4;
 	private const int WorkerCount = 4;
@@ -95,6 +96,20 @@ public class TileManager(GraphicsDevice device) : IDisposable
 	{
 		EnsureWorkersStarted();
 
+		// Process completed downloads on the main thread (always, even when static)
+		int blits = 0;
+		while (blits < MaxBlitsPerFrame && _completedTiles.TryDequeue(out var completed))
+		{
+			_virtualAtlas.BlitTile(completed.coord, completed.data);
+			blits++;
+		}
+
+		// Skip visible-tile recalculation when camera hasn't changed and no new tiles arrived
+		int cameraVersion = camera.Version;
+		if (cameraVersion == _lastFlatCameraVersion && blits == 0)
+			return;
+		_lastFlatCameraVersion = cameraVersion;
+
 		var visibleTiles = camera.GetVisibleTiles();
 
 		// Touch visible tiles to keep them in the atlas LRU
@@ -136,14 +151,6 @@ public class TileManager(GraphicsDevice device) : IDisposable
 		// Publish snapshot for workers
 		_desiredTiles = needed;
 		_snapshotReady.Set();
-
-		// Process completed downloads on the main thread
-		int blits = 0;
-		while (blits < MaxBlitsPerFrame && _completedTiles.TryDequeue(out var completed))
-		{
-			_virtualAtlas.BlitTile(completed.coord, completed.data);
-			blits++;
-		}
 	}
 
 	private static double DistSq(double x1, double y1, double x2, double y2)

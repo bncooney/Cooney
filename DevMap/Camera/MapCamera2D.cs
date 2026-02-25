@@ -8,16 +8,54 @@ namespace DevMap.Camera;
 
 public class MapCamera2D
 {
-	public double CenterLat { get; set; }
-	public double CenterLon { get; set; }
-	public double Zoom { get; set; } = 5.0;
-	public int ViewportWidth { get; set; }
-	public int ViewportHeight { get; set; }
+	private double _centerLat, _centerLon;
+	private double _zoom = 5.0;
+	private int _viewportWidth, _viewportHeight;
+	private int _version;
+
+	public double CenterLat
+	{
+		get => _centerLat;
+		set { if (_centerLat != value) { _centerLat = value; _version++; } }
+	}
+
+	public double CenterLon
+	{
+		get => _centerLon;
+		set { if (_centerLon != value) { _centerLon = value; _version++; } }
+	}
+
+	public double Zoom
+	{
+		get => _zoom;
+		set { if (_zoom != value) { _zoom = value; _version++; } }
+	}
+
+	public int ViewportWidth
+	{
+		get => _viewportWidth;
+		set { if (_viewportWidth != value) { _viewportWidth = value; _version++; } }
+	}
+
+	public int ViewportHeight
+	{
+		get => _viewportHeight;
+		set { if (_viewportHeight != value) { _viewportHeight = value; _version++; } }
+	}
+
+	/// <summary>
+	/// Monotonically increasing version number. Incremented whenever any camera property changes.
+	/// </summary>
+	public int Version => _version;
 
 	public double MinZoom { get; set; } = 4.0;
 	public double MaxZoom { get; set; } = 12.0;
 
 	private const double ZoomFactor = 1.1;
+
+	// Reusable collections for GetVisibleTiles to avoid per-call allocations
+	private readonly List<TileCoordinate> _visibleTiles = new(64);
+	private readonly HashSet<(int, int)> _seenTiles = new(64);
 
 	/// <summary>
 	/// Convert screen position to geographic coordinates.
@@ -136,8 +174,8 @@ public class MapCamera2D
 		int minTY = Math.Max(0, (int)Math.Floor(topPy / tileScreenSize) - 1);
 		int maxTY = Math.Min(tileCount - 1, (int)Math.Floor(bottomPy / tileScreenSize) + 1);
 
-		var tiles = new List<TileCoordinate>();
-		var seen = new HashSet<(int, int)>();
+		_visibleTiles.Clear();
+		_seenTiles.Clear();
 
 		for (int y = minTY; y <= maxTY; y++)
 		{
@@ -145,14 +183,14 @@ public class MapCamera2D
 			{
 				// Wrap X to valid range (horizontal wrapping)
 				int wrappedX = ((x % tileCount) + tileCount) % tileCount;
-				if (seen.Add((wrappedX, y)))
+				if (_seenTiles.Add((wrappedX, y)))
 				{
-					tiles.Add(new TileCoordinate(tileZoom, wrappedX, y));
+					_visibleTiles.Add(new TileCoordinate(tileZoom, wrappedX, y));
 				}
 			}
 		}
 
-		return tiles;
+		return _visibleTiles;
 	}
 
 	/// <summary>
