@@ -1,0 +1,289 @@
+@startuml DevMap Architecture
+!theme plain
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classFontSize 12
+skinparam packageFontSize 14
+
+' ──────────────────────────────────────
+'  VIEWS
+' ──────────────────────────────────────
+package "Views" #E8F5E9 {
+    class MainWindow <<Window>> {
+        Loads: GlobeViewPage
+        --
+        Commands: CloseCommand
+    }
+
+    class GlobeViewPage <<Page>> {
+        MonoGameContentControl
+        --
+        Binds: ClickCoordinates
+        Binds: NavigateInput
+        Binds: CameraPosition
+        Binds: ZoomLevel
+        --
+        Commands: NavigateCommand
+        Commands: GoToParisCommand
+        Commands: GoToNewYorkCommand
+        Commands: GoToSydneyCommand
+        Commands: ZoomInCommand
+        Commands: ZoomOutCommand
+    }
+}
+
+' ──────────────────────────────────────
+'  WPF ↔ MONOGAME BRIDGE
+' ──────────────────────────────────────
+package "MonoGameControls" #E0F7FA {
+    class MonoGameContentControl <<ContentControl>> {
+        + GraphicsDevice : GraphicsDevice
+        + IsDisposed : bool
+        --
+        Renders via D3DImage
+        Forwards mouse events to ViewModel
+        Game loop: CompositionTarget.Rendering
+    }
+
+    class MonoGameGraphicsDeviceService <<IGraphicsDeviceService>> {
+        + Direct3DContext : Direct3DEx
+        + Direct3DDevice : DeviceEx
+        + GraphicsDevice : GraphicsDevice
+        --
+        + StartDirect3D(window)
+        + ResetDevice(width, height)
+    }
+
+    interface IMonoGameViewModel <<IDisposable>> {
+        + GraphicsDeviceService : IGraphicsDeviceService
+        --
+        + Initialize()
+        + LoadContent()
+        + UnloadContent()
+        + Update(gameTime)
+        + Draw(gameTime)
+        + OnMouseDown(mouseState)
+        + OnMouseMove(mouseState)
+        + OnMouseUp(mouseState)
+        + OnMouseWheel(args, delta)
+        + SizeChanged(sender, args)
+    }
+
+    class MonoGameViewModel <<INotifyPropertyChanged>> {
+        # GraphicsDevice : GraphicsDevice
+        # Services : MonoGameServiceProvider
+        # Content : ContentManager
+        # Components : List<IGameComponent>
+    }
+
+    class MonoGameServiceProvider <<IServiceProvider>> {
+        + AddService<T>(service)
+        + GetService<T>() : T
+        + RemoveService(type)
+    }
+
+    class MouseStateArgs {
+        + Position : Vector2
+        + LeftButton : ButtonState
+        + RightButton : ButtonState
+    }
+}
+
+' ──────────────────────────────────────
+'  APPLICATION LOGIC
+' ──────────────────────────────────────
+package "Application" #E3F2FD {
+    class GlobeViewModel <<MonoGameViewModel>> {
+        + ClickCoordinates : string
+        + NavigateInput : string
+        + CameraPosition : string
+        + ZoomLevel : string
+        --
+        + NavigateCommand : ICommand
+        + GoToParisCommand : ICommand
+        + GoToNewYorkCommand : ICommand
+        + GoToSydneyCommand : ICommand
+        + ZoomInCommand : ICommand
+        + ZoomOutCommand : ICommand
+        + ZoomToCityCommand : ICommand
+        + ZoomToRegionCommand : ICommand
+        + ZoomToWorldCommand : ICommand
+        --
+        + NavigateTo(latDeg, lonDeg, smooth?, duration?)
+    }
+
+    class ArcballCamera {
+        + Yaw : float
+        + Pitch : float
+        + Distance : float
+        + View : Matrix
+        + Projection : Matrix
+        + Position : Vector3
+        --
+        + HandleMouseDown(position)
+        + HandleMouseMove(position)
+        + HandleMouseUp()
+        + HandleMouseWheel(delta)
+        + UpdateMatrices(viewport)
+    }
+
+    class MapCamera2D {
+        + CenterLat : double
+        + CenterLon : double
+        + Zoom : double
+        + ViewportWidth : int
+        + ViewportHeight : int
+        --
+        + ScreenToGeo(screenPos) : (lat, lon)
+        + GeoToScreen(lat, lon) : Vector2
+        + GetVisibleTiles() : List<TileCoordinate>
+        + HandleMouseDrag(delta)
+        + HandleMouseWheel(delta)
+    }
+}
+
+' ──────────────────────────────────────
+'  RENDERING
+' ──────────────────────────────────────
+package "Rendering" #FFF3E0 {
+    class GlobeRenderer <<IDisposable>> {
+        + Draw(camera, atlasTexture)
+    }
+
+    class FlatMapRenderer <<IDisposable>> {
+        + Draw(camera, atlas)
+    }
+
+    class SphereMesh <<IDisposable>> {
+        + VertexBuffer : VertexBuffer
+        + IndexBuffer : IndexBuffer
+        + PrimitiveCount : int
+    }
+}
+
+' ──────────────────────────────────────
+'  TILE SYSTEM
+' ──────────────────────────────────────
+package "Tiles" #F3E5F5 {
+    class TileManager <<IDisposable>> {
+        + AtlasTexture : Texture2D?
+        + VirtualAtlas : VirtualTileAtlas
+        --
+        + Update(camera, viewport)
+        + UpdateFlat(camera)
+    }
+
+    class TileFetcher <<IDisposable>> {
+        + FetchTileAsync(coord, ct) : Task<byte[]?>
+        --
+        HTTP from OpenStreetMap
+        2 concurrent requests
+    }
+
+    class TileCache {
+        + TryGet(coord) : byte[]?
+        + Store(coord, pngData)
+        --
+        Memory LRU + disk
+        %LOCALAPPDATA%/DevMap/tilecache
+    }
+
+    class TileAtlas <<IDisposable>> {
+        + AtlasTexture : Texture2D?
+        + CurrentZoom : int
+        --
+        + SetZoom(zoom)
+        + IsTileLoaded(coord) : bool
+        + BlitTile(coord, pngData)
+    }
+
+    class VirtualTileAtlas <<IDisposable>> {
+        + AtlasTexture : Texture2D?
+        --
+        + IsTileLoaded(coord) : bool
+        + Touch(coord)
+        + GetSlotUV(coord) : (uvMin, uvMax)
+        + BlitTile(coord, pngData)
+        --
+        LRU eviction, sparse slots
+    }
+
+    class TileCoordinate <<record struct>> {
+        + Zoom : int
+        + X : int
+        + Y : int
+        --
+        + ToUrl() : string
+        + ToCacheFileName() : string
+    }
+
+    class MercatorProjection <<static>> {
+        + {static} LatitudeToMercatorV(latRad)
+        + {static} ZoomFromDistance(distance, fov, screenHeight)
+        + {static} GeoToPixel(lat, lon, zoom)
+        + {static} PixelToGeo(px, py, zoom)
+        + {static} GeoToTile(lat, lon, zoom)
+        + {static} TileBounds(x, y, zoom)
+    }
+}
+
+' ──────────────────────────────────────
+'  VIEW → VIEW MODEL (DataContext)
+' ──────────────────────────────────────
+MainWindow       -[#2E7D32,bold]-->  GlobeViewPage        : loads
+GlobeViewPage    -[#2E7D32,bold]-->  MonoGameContentControl : contains
+
+' ──────────────────────────────────────
+'  MONOGAME BRIDGE RELATIONSHIPS
+' ──────────────────────────────────────
+MonoGameViewModel     ..|>  IMonoGameViewModel
+MonoGameViewModel     --[#00838F]-->  MonoGameServiceProvider : uses
+MonoGameContentControl -[#00838F,bold]--> IMonoGameViewModel     : binds ViewModel
+MonoGameContentControl -[#00838F,bold]--> MonoGameGraphicsDeviceService : creates D3D9\ndevice + surface
+
+' ──────────────────────────────────────
+'  APPLICATION → MONOGAME
+' ──────────────────────────────────────
+GlobeViewModel   --|>  MonoGameViewModel       : extends
+
+' ──────────────────────────────────────
+'  APPLICATION → COMPONENTS
+' ──────────────────────────────────────
+GlobeViewModel   *-[#1565C0]--> ArcballCamera      : 3D camera
+GlobeViewModel   *-[#1565C0]--> MapCamera2D        : 2D camera
+GlobeViewModel   *-[#1565C0]--> GlobeRenderer      : 3D rendering
+GlobeViewModel   *-[#1565C0]--> FlatMapRenderer    : 2D rendering
+GlobeViewModel   *-[#1565C0]--> TileManager        : tile pipeline
+
+' ──────────────────────────────────────
+'  RENDERING → DEPENDENCIES
+' ──────────────────────────────────────
+GlobeRenderer    *-[#E65100]--> SphereMesh          : textured sphere
+
+' ──────────────────────────────────────
+'  TILE PIPELINE
+' ──────────────────────────────────────
+TileManager      *-[#6A1B9A]--> TileFetcher         : HTTP fetch
+TileManager      *-[#6A1B9A]--> TileCache           : memory + disk
+TileManager      *-[#6A1B9A]--> TileAtlas           : globe GPU atlas
+TileManager      *-[#6A1B9A]--> VirtualTileAtlas    : flat GPU atlas
+
+TileFetcher      ..[#6A1B9A].>  TileCoordinate      : fetches by
+TileCache        ..[#6A1B9A].>  TileCoordinate      : keyed by
+TileAtlas        ..[#6A1B9A].>  TileCoordinate      : indexed by
+VirtualTileAtlas ..[#6A1B9A].>  TileCoordinate      : indexed by
+MercatorProjection .[#6A1B9A].> TileCoordinate      : computes
+
+' ──────────────────────────────────────
+'  LEGEND
+' ──────────────────────────────────────
+legend right
+  |= Color |= Relationship |
+  | <#2E7D32> | View → View (navigation) |
+  | <#00838F> | WPF ↔ MonoGame bridge |
+  | <#1565C0> | ViewModel → Component (owns) |
+  | <#E65100> | Renderer → Mesh |
+  | <#6A1B9A> | Tile pipeline |
+end legend
+
+@enduml

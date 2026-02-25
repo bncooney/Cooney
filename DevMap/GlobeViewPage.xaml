@@ -4,9 +4,19 @@
       xmlns:mgc="clr-namespace:DevMap.MonoGameControls"
       xmlns:local="clr-namespace:DevMap">
 
-    <mgc:MonoGameContentControl x:Name="GameControl">
-        <mgc:MonoGameContentControl.DataContext>
-            <local:GlobeViewModel />
-        </mgc:MonoGameContentControl.DataContext>
-    </mgc:MonoGameContentControl>
+    <Grid>
+        <mgc:MonoGameContentControl x:Name="GameControl">
+            <mgc:MonoGameContentControl.DataContext>
+                <local:GlobeViewModel />
+            </mgc:MonoGameContentControl.DataContext>
+        </mgc:MonoGameContentControl>
+
+        <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Background="#B0FFFFFF" CornerRadius="2" Padding="4,2" Margin="0,0,4,2">
+            <TextBlock FontSize="11" IsHitTestVisible="True">
+                <Run Text="Map data from " /><Hyperlink NavigateUri="https://www.openstreetmap.org/copyright"
+                       RequestNavigate="Hyperlink_RequestNavigate">OpenStreetMap</Hyperlink>
+            </TextBlock>
+        </Border>
+    </Grid>
 </Page>
